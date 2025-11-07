@@ -1,13 +1,13 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 import redis
 
 from ..config import Settings
 from ..models.projects import ProjectCreate, ProjectInfo
-from .auth import generate_password, generate_project_id, hash_password
+from .security import generate_password, generate_project_id, hash_password
 from .repository import ProjectRepository
 from .secrets import SecretStorage
 
@@ -81,7 +81,7 @@ class ProjectService:
         created_at = (
             datetime.fromisoformat(created_at_raw)
             if created_at_raw
-            else datetime.utcnow()
+            else datetime.now(timezone.utc)
         )
 
         return ProjectInfo(
@@ -146,7 +146,7 @@ class ProjectService:
         project_id = generate_project_id(payload.username, payload.project_name)
         password = generate_password()
         password_hash = hash_password(password)
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = datetime.now(timezone.utc).isoformat()
 
         database_value = (payload.database or "none")
 

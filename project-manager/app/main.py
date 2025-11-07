@@ -1,11 +1,17 @@
+"""FastAPI entrypoint for the project manager service."""
+
+from __future__ import annotations
+
 import asyncio
 import logging
 from contextlib import suppress
+from typing import Dict
 
+import docker
 from fastapi import Depends, FastAPI, HTTPException, Request
 
 from .config import Settings
-from .models import ExecCommand, ProjectRequest
+from .models import ExecCommand, ProjectRequest, ProjectSecrets
 from .services import ProjectManager
 
 logging.basicConfig(
@@ -58,7 +64,7 @@ def get_manager(request: Request) -> ProjectManager:
 
 
 @app.get("/health")
-async def health(manager: ProjectManager = Depends(get_manager)) -> dict:
+async def health(manager: ProjectManager = Depends(get_manager)) -> Dict[str, str]:
     manager.docker_client.ping()
     return {"status": "healthy"}
 
@@ -67,7 +73,7 @@ async def health(manager: ProjectManager = Depends(get_manager)) -> dict:
 async def create_project(
     request: ProjectRequest,
     manager: ProjectManager = Depends(get_manager),
-) -> dict:
+) -> Dict[str, str]:
     status = manager.create_project(request)
     return status.dict()
 
@@ -76,7 +82,7 @@ async def create_project(
 async def project_status(
     project_id: str,
     manager: ProjectManager = Depends(get_manager),
-) -> dict:
+) -> Dict[str, str]:
     status = manager.get_status(project_id)
     if not status:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -87,9 +93,24 @@ async def project_status(
 async def delete_project(
     project_id: str,
     manager: ProjectManager = Depends(get_manager),
-) -> dict:
+) -> Dict[str, str]:
     status = manager.delete_project(project_id)
     return status.dict()
+
+
+@app.post("/internal/projects/{project_id}/secrets")
+async def sync_project_secrets(
+    project_id: str,
+    secrets: ProjectSecrets,
+    manager: ProjectManager = Depends(get_manager),
+) -> Dict[str, str]:
+    try:
+        result = manager.sync_project_secrets(project_id, secrets)
+    except docker.errors.NotFound as exc:  # type: ignore[name-defined]
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return result
 
 
 @app.post("/internal/projects/{project_id}/exec")
@@ -97,7 +118,7 @@ async def exec_in_project(
     project_id: str,
     command: ExecCommand,
     manager: ProjectManager = Depends(get_manager),
-) -> dict:
+) -> Dict[str, object]:
     try:
         return manager.exec(project_id, command)
     except Exception as exc:  # pragma: no cover - runtime errors are surfaced

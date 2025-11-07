@@ -1,14 +1,19 @@
+"""Primary service layer for the project manager."""
+
+from __future__ import annotations
+
 import logging
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional
 
 import docker
 import redis
 
-from .config import Settings
-from .models import ExecCommand, ProjectRequest, ProjectStatus
+from ..config import Settings
+from ..models import ExecCommand, ProjectRequest, ProjectSecrets, ProjectStatus
+from .secret_sync import SecretSyncError, SecretSyncService
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +30,7 @@ class ProjectManager:
             db=settings.redis_db,
             decode_responses=True,
         )
+        self.secret_sync = SecretSyncService(settings.gh_config_dir)
         self._ensure_directories()
         self._ensure_network()
 
@@ -93,7 +99,7 @@ class ProjectManager:
         payload: Dict[str, str] = {
             "status": status,
             "container_id": container_id or "",
-            "last_seen": datetime.utcnow().isoformat(),
+            "last_seen": datetime.now(timezone.utc).isoformat(),
         }
         if extra:
             payload.update(extra)
@@ -169,6 +175,33 @@ class ProjectManager:
             container_id=container.id,
             info={"workspace": str(workspace)},
         )
+
+    def sync_project_secrets(self, project_id: str, secrets: ProjectSecrets) -> Dict[str, str]:
+        """Write the GitHub CLI configuration into the project container."""
+
+        container = self._find_container(project_id)
+        if not container:
+            raise docker.errors.NotFound(f"Container not found for {project_id}")
+
+        if container.status != "running":
+            container.start()
+            container.reload()
+
+        try:
+            result = self.secret_sync.sync(project_id, container, secrets)
+        except SecretSyncError as exc:
+            logger.error(
+                "Secret synchronisation failed", extra={"project_id": project_id, "error": str(exc)}
+            )
+            raise
+
+        self._update_state(
+            project_id,
+            container.status,
+            container.id,
+            {"secrets_synced": datetime.now(timezone.utc).isoformat()},
+        )
+        return result
 
     def delete_project(self, project_id: str) -> ProjectStatus:
         container = self._find_container(project_id)

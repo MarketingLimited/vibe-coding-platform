@@ -1,6 +1,6 @@
 from typing import Dict, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 
 class ProjectLimits(BaseModel):
@@ -16,6 +16,19 @@ class ProjectRequest(BaseModel):
     redis: bool = False
     username: str
     limits: ProjectLimits = Field(default_factory=ProjectLimits)
+
+
+class ProjectSecrets(BaseModel):
+    username: str
+    github_api_key: str = Field(..., min_length=20)
+    additional_secrets: Dict[str, str] = Field(default_factory=dict)
+
+    @validator("github_api_key")
+    def _trim_token(cls, value: str) -> str:
+        token = value.strip()
+        if not token:
+            raise ValueError("github_api_key cannot be empty")
+        return token
 
 
 class ExecCommand(BaseModel):

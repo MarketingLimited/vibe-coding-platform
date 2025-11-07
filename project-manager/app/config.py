@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     redis_db: int = Field(0, env="REDIS_DB")
 
     health_poll_interval: int = Field(60, env="HEALTH_POLL_INTERVAL")
+    gh_config_dir: Path = Field(Path("/root/.config/gh"), env="GH_CONFIG_DIR")
 
     class Config:
         env_file = ".env"
