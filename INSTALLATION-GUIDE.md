@@ -44,7 +44,14 @@ docker network create vibe-network  # يتم تجاهله تلقائياً إذ�
 - `docker compose logs -f api` → مراجعة السجلات في حال وجود مشكلة.
 - `./tools/vibe-status.sh` → استعلام شامل لنقطة `/health/services` مع تنسيق JSON.
 
-## 5. إنشاء مشروع تجريبي
+## 5. معاينة التطبيقات (Live Preview)
+- يتم تشغيل خدمة Traefik (`edge-proxy`) تلقائياً من خلال `docker compose` وتوجد إعداداتها ضمن المجلد `infra/edge/`.
+- لدعم الشهادة wildcard، انسخ الملفات `wildcard.kazaaz.com.crt` و`wildcard.kazaaz.com.key` إلى مجلد `${DATA_DIR}/certs` قبل تشغيل الخدمات.
+- يمكن تغيير النطاق المستخدم للمعاينة عبر تعديل المتغير `PREVIEW_DOMAIN` في `config/.env`، كما يمكن ضبط المنفذ الداخلي والـ entrypoints عبر `PREVIEW_INTERNAL_PORT` و`PREVIEW_ENTRYPOINTS`.
+- بعد إنشاء أي مشروع جديد ستحصل تلقائياً على رابط بالشكل `https://<project-id>.kazaaz.com`، تأكد من توجيه DNS wildcard (`*.kazaaz.com`) إلى عنوان الخادم.
+- لضبط سياسات إضافية (مثل رؤوس الأمان أو نطاقات إضافية) عدّل ملفات `infra/edge/traefik.yml` و`infra/edge/dynamic/certificates.yml`.
+
+## 6. إنشاء مشروع تجريبي
 ```bash
 # باستخدام واجهة API (مع مفتاح الإدارة)
 curl -X POST http://localhost:9000/projects/create \
@@ -58,21 +65,21 @@ curl -X POST http://localhost:9000/projects/create \
 ```
 الاستجابة ستحتوي على `project_id` و`password`. استخدمها للوصول للمشروع عبر `/projects/info` أو لتنفيذ الأوامر عبر `/exec`.
 
-## 6. مسارات العمل الأساسية
+## 7. مسارات العمل الأساسية
 1. **إنشاء مشروع** → `POST /projects/create` (يتطلب `X-API-Key`).
 2. **الحصول على معلومات المشروع** → `POST /projects/info` (باستخدام `project_id` + كلمة المرور).
 3. **تنفيذ أوامر** → `POST /exec` (الأمر يمر عبر Project Manager).
 4. **حذف مشروع** → `DELETE /projects/delete` (إما بالمفتاح الرئيسي أو كلمة مرور المشروع).
 5. **تدوير كلمة المرور** → `POST /projects/rotate-password`.
 
-## 7. إعداد ChatGPT Action
+## 8. إعداد ChatGPT Action
 1. افتح GPT Builder واختر Actions.
 2. استورد `openapi-spec-multitenant.yaml`.
 3. أدخل `X-API-Key` المخزن في `config/.env`.
 4. الصق تعليمات `GPT-INSTRUCTIONS-MULTITENANT.md` في قسم التعليمات.
 5. اختبر: "أنشئ مشروع Python جديد" ثم قم بتنفيذ أمر داخل المشروع عبر `/exec`.
 
-## 8. الصيانة الدورية
+## 9. الصيانة الدورية
 - **vibe-update**: يسحب آخر التحديثات من GitHub ويعيد بناء الصور.
 - **vibe-logs**: يعرض سجلات جميع الخدمات.
 - **vibe-status**: يبيّن حالة الحاويات.
@@ -82,7 +89,7 @@ curl -X POST http://localhost:9000/projects/create \
 - **محددات المعدل**: استخدم قيم `RATE_LIMIT_*` لضبط عدد طلبات الإنشاء، الاستعلام، والتنفيذ لكل مشروع بما يتناسب مع سياق الاستخدام.
 - **سجلات التدقيق**: يتم تدوين كل طلب في `logs/audit.log` مع `request_id` لتسهيل التتبع.
 
-## 9. استكشاف الأخطاء
+## 10. استكشاف الأخطاء
 | المشكلة | الفحص | الحل |
 |---------|-------|------|
 | API لا يستجيب | `docker compose logs api` | تأكد من صحة إعدادات Redis ووجود `API_KEY` في `.env` |
@@ -93,13 +100,13 @@ curl -X POST http://localhost:9000/projects/create \
 | استجابة 429 (Rate Limit) | `docker compose logs api` + `redis-cli --scan --pattern 'rate:*'` | قلل معدل الطلب أو زد حدود `RATE_LIMIT_*` في `.env` |
 | عدم توفر المراقبة | `docker compose -f infra/monitoring/docker-compose.monitoring.yml up` | شغل حزمة Prometheus/Grafana وتأكد من الوصول إلى `/metrics` |
 
-## 10. تحديث الصور أو القوالب
+## 11. تحديث الصور أو القوالب
 - لتعديل قوالب المشاريع: عدّل الملفات داخل `projects/templates/default` ثم أعد بناء صورة المشروع إذا لزم.
 - لتحديث صور اللغات: حدّث Dockerfiles داخل `project-manager/templates/images` ثم شغّل `docker build -t vibe-project-python:latest project-manager/templates/images/python` (مع استبدال الاسم عند الحاجة).
 
 باتباع هذه الخطوات يتم نشر المنصة وتشغيلها مع البنية الجديدة المتوافقة مع خطة GPT Actions.
 
-## 11. المراقبة والاختبارات المتقدمة
+## 12. المراقبة والاختبارات المتقدمة
 - لتفعيل المراقبة: `docker compose -f infra/monitoring/docker-compose.monitoring.yml up -d` ثم زيارة `http://localhost:3000` (Grafana).
 - يتوفر مصدر بيانات Prometheus جاهز يعتمد على نقطة `/metrics` التي يعرّضها الـ API تلقائياً.
 - نفّذ `pytest` من جذر المستودع للتحقق من محددات المعدل، مستودع المشاريع، ومنطق خدمة التنظيف قبل الإطلاق الإنتاجي.

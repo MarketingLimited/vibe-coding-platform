@@ -102,6 +102,13 @@ bash tools/setup/activate.sh
 - نقاط `/health` و`/health/services` في الـ API للاطمئنان على Redis، قاعدة البيانات، Docker، وخدمة Project Manager، بالإضافة إلى `/metadata` للحصول على الحدود الحالية، وحلقة مراقبة Project Manager لتحديث الحالة كل بضع ثوانٍ.
 - مجلد `infra/monitoring/` يحتوي حزمة Prometheus/Grafana اختيارية لمراقبة المنصة وتشغيلها بجوار الخدمات الأساسية.
 
+## 🌐 معاينة التطبيقات (Live Preview)
+- خدمة Traefik الجديدة (`edge-proxy`) تقع تحت `infra/edge/` ويتم تشغيلها تلقائياً مع بقية الخدمات عبر `docker compose`.
+- لدعم TLS على النطاق الفرعي `*.kazaaz.com`، ضع ملفات الشهادة `wildcard.kazaaz.com.crt` و`wildcard.kazaaz.com.key` داخل مجلد `${DATA_DIR}/certs` قبل تشغيل المنصة.
+- يقوم Project Manager بربط كل حاوية مشروع بالشبكة `vibe-proxy` ويولّد عنوان المعاينة `https://<project-id>.kazaaz.com` تلقائياً، ويمكن تغيير النطاق باستخدام المتغير `PREVIEW_DOMAIN`.
+- يمكن تخصيص المنافذ ونقاط الدخول عبر المتغيرات البيئية (`PREVIEW_INTERNAL_PORT`, `PREVIEW_ENTRYPOINTS`, `PREVIEW_SERVICE_SCHEME`) بما يتناسب مع الصور الخاصة بك.
+- تمت إضافة ملفات `infra/edge/traefik.yml` و`infra/edge/dynamic/certificates.yml` كبداية آمنة يمكن توسيعها لإضافة رؤوس أمان أو نطاقات إضافية عند الحاجة.
+
 ## ✅ الاختبارات الموصى بها بعد التثبيت
 1. `curl http://localhost:9000/health` للتأكد من جاهزية الـ API.
 2. `curl http://localhost:9000/health/services` للحصول على حالة المكونات الداخلية وحدود المعدل.
