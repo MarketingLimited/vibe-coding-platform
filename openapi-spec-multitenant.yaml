@@ -244,6 +244,10 @@ paths:
                     type: string
                   container_id:
                     type: string
+                  preview_url:
+                    type: string
+                    description: رابط المعاينة المباشر (https://{project}.kazaaz.com)
+                    nullable: true
                   message:
                     type: string
               example:
@@ -251,6 +255,7 @@ paths:
                 password: "X7k2Pm9qs4Rt8vLn"
                 status: "ready"
                 container_id: "abc123def456"
+                preview_url: "https://ahmad-myapi.kazaaz.com"
                 message: "Save this password! It won't be shown again."
 
   /exec:
@@ -375,6 +380,31 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  project_id:
+                    type: string
+                  username:
+                    type: string
+                  project_name:
+                    type: string
+                  project_type:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+                  status:
+                    type: string
+                  container_id:
+                    type: string
+                    nullable: true
+                  database:
+                    type: string
+                  redis:
+                    type: boolean
+                  preview_url:
+                    type: string
+                    nullable: true
+                    description: رابط المعاينة المباشر
 
   /projects/{username}:
     get:
@@ -401,6 +431,31 @@ paths:
                     type: array
                     items:
                       type: object
+                      properties:
+                        project_id:
+                          type: string
+                        username:
+                          type: string
+                        project_name:
+                          type: string
+                        project_type:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        status:
+                          type: string
+                        container_id:
+                          type: string
+                          nullable: true
+                        database:
+                          type: string
+                        redis:
+                          type: boolean
+                        preview_url:
+                          type: string
+                          nullable: true
+                          description: رابط المعاينة المباشر
 
 components:
   securitySchemes:

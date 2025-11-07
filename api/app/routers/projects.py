@@ -72,7 +72,12 @@ async def create_project(
 
     container_id = manager_response.get("container_id") or ""
     status = manager_response.get("status", "active")
-    record = project_service.create_project_record(payload, container_id, status)
+    info_block = manager_response.get("info") or {}
+    preview_url = None
+    if isinstance(info_block, dict):
+        preview_url = info_block.get("preview_url")
+
+    record = project_service.create_project_record(payload, container_id, status, preview_url)
 
     secret_payload = {
         "username": payload.username,
@@ -102,6 +107,7 @@ async def create_project(
         "password": record["password"],
         "container_id": container_id,
         "status": manager_response.get("status", "active"),
+        "preview_url": preview_url,
         "message": "Save this password! It won't be shown again.",
     }
 
@@ -129,6 +135,7 @@ async def list_projects(
             "container_id": project.container_id,
             "database": project.database,
             "redis": project.redis,
+            "preview_url": project.preview_url,
         }
         for project in projects
     ]
@@ -153,12 +160,17 @@ async def project_info(
 
     status_payload = await project_manager.get_project_status(auth.project_id)
     container_status: Optional[str] = None
+    preview_url = project.preview_url
     if status_payload:
         container_status = status_payload.get("status")
+        info_block = status_payload.get("info") if isinstance(status_payload, dict) else None
+        if isinstance(info_block, dict):
+            preview_url = info_block.get("preview_url") or preview_url
         project_service.update_container_status(
             auth.project_id,
             status_payload.get("status", project.status),
             status_payload.get("container_id", project.container_id),
+            preview_url,
         )
 
     return {
@@ -171,6 +183,7 @@ async def project_info(
         "container_id": project.container_id,
         "database": project.database,
         "redis": project.redis,
+        "preview_url": preview_url,
     }
 
 

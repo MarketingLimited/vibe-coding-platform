@@ -54,6 +54,7 @@ class ProjectService:
             "container_id": data.get("container_id", ""),
             "created_at": data["created_at"],
             "status": data.get("status", "unknown"),
+            "preview_url": data.get("preview_url", ""),
         }
         return mapping
 
@@ -84,6 +85,8 @@ class ProjectService:
             else datetime.now(timezone.utc)
         )
 
+        preview_url = data.get("preview_url") or None
+
         return ProjectInfo(
             project_id=data["project_id"],
             username=data["username"],
@@ -94,6 +97,7 @@ class ProjectService:
             container_id=data.get("container_id"),
             database=database_value,
             redis=bool(redis_value),
+            preview_url=preview_url,
         )
 
     # ------------------------------------------------------------------
@@ -141,7 +145,11 @@ class ProjectService:
         return project
 
     def create_project_record(
-        self, payload: ProjectCreate, container_id: str, status: str
+        self,
+        payload: ProjectCreate,
+        container_id: str,
+        status: str,
+        preview_url: Optional[str] = None,
     ) -> Dict[str, str]:
         project_id = generate_project_id(payload.username, payload.project_name)
         password = generate_password()
@@ -160,6 +168,7 @@ class ProjectService:
             "redis_enabled": "1" if payload.redis else "0",
             "password_hash": password_hash,
             "container_id": container_id,
+            "preview_url": preview_url or "",
             "created_at": timestamp,
             "updated_at": timestamp,
             "status": status,
@@ -193,6 +202,7 @@ class ProjectService:
             "project_id": project_id,
             "password": password,
             "container_id": container_id,
+            "preview_url": preview_url,
         }
 
     def can_create_project(self, username: str) -> bool:
@@ -214,16 +224,22 @@ class ProjectService:
         return hash_password(password) == stored_hash
 
     def update_container_status(
-        self, project_id: str, status: str, container_id: Optional[str]
+        self,
+        project_id: str,
+        status: str,
+        container_id: Optional[str],
+        preview_url: Optional[str] = None,
     ) -> None:
         logger.info(
             "Updating project status",
             extra={"project_id": project_id, "status": status, "container_id": container_id},
         )
-        self.repository.update_status(project_id, status, container_id)
+        self.repository.update_status(project_id, status, container_id, preview_url)
         mapping: Dict[str, str] = {"status": status}
         if container_id:
             mapping["container_id"] = container_id
+        if preview_url:
+            mapping["preview_url"] = preview_url
         self.redis.hset(self._project_key(project_id), mapping=mapping)
 
     def rotate_password(self, project_id: str) -> Optional[str]:

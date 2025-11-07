@@ -1,10 +1,38 @@
 from __future__ import annotations
 
+import base64
 import sqlite3
 import sys
+import types
 from pathlib import Path
 
 import pytest
+
+if "cryptography.fernet" not in sys.modules:  # pragma: no cover - testing stub
+    fake_crypto = types.ModuleType("cryptography")
+    fake_fernet = types.ModuleType("fernet")
+
+    class _FakeInvalidToken(Exception):
+        pass
+
+    class _FakeFernet:
+        def __init__(self, key: bytes) -> None:  # noqa: D401, ANN001
+            self._key = key
+
+        def encrypt(self, payload: bytes) -> bytes:
+            return base64.urlsafe_b64encode(payload[::-1])
+
+        def decrypt(self, token: bytes) -> bytes:
+            try:
+                return base64.urlsafe_b64decode(token)[::-1]
+            except Exception as exc:  # pragma: no cover - defensive
+                raise _FakeInvalidToken(str(exc)) from exc
+
+    fake_fernet.Fernet = _FakeFernet
+    fake_fernet.InvalidToken = _FakeInvalidToken
+    fake_crypto.fernet = fake_fernet
+    sys.modules["cryptography"] = fake_crypto
+    sys.modules["cryptography.fernet"] = fake_fernet
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -92,7 +120,12 @@ def test_project_service_persists_and_rolls_out_secrets(project_settings: Settin
         additional_secrets={"scope": "repo"},
     )
 
-    record = service.create_project_record(payload, container_id="container-1", status="active")
+    record = service.create_project_record(
+        payload,
+        container_id="container-1",
+        status="active",
+        preview_url="https://demo.kazaaz.com",
+    )
     stored = storage.get_project_secrets(record["project_id"])
     assert stored is not None
     assert stored["github_api_key"] == "ghp_abcdefghijklmnopqrstuvwxyz0123456789"
