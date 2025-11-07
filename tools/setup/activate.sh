@@ -13,6 +13,7 @@ CONFIG_DIR="$ROOT_DIR/config"
 ENV_FILE="$ROOT_DIR/.env"
 CONFIG_ENV_FILE="$CONFIG_DIR/.env"
 EXAMPLE_FILE="$CONFIG_DIR/.env.example"
+BUILD_IMAGES_SCRIPT="$ROOT_DIR/tools/build-project-images.sh"
 
 if [[ ! -f "$EXAMPLE_FILE" ]]; then
   echo "[setup] Missing template: $EXAMPLE_FILE" >&2
@@ -68,6 +69,11 @@ DB_PASS_DEFAULT=${DB_PASSWORD:-$(generate_secret)}
 DB_PASSWORD=$(read_with_default "Database encryption password" "$DB_PASS_DEFAULT")
 ALERT_EMAIL=$(read_with_default "Alert email recipient" "${ADMIN_ALERT_EMAIL:-alerts@example.com}")
 
+GITHUB_SECRETS_KEY_VALUE=${GITHUB_SECRETS_KEY:-$(generate_secret)}
+GITHUB_SECRETS_PATH_VALUE="${GITHUB_SECRETS_PATH:-/data/github-secrets.bin}"
+
+echo "[setup] Generated GitHub secrets encryption key."
+
 API_HOST=$(read_with_default "API host binding" "${API_HOST:-0.0.0.0}")
 
 cat >"$ENV_FILE" <<EOF
@@ -86,6 +92,9 @@ LOGS_DIR=/logs
 DB_TYPE=sqlite
 DB_PATH=/data/projects.db
 DB_PASSWORD=$DB_PASSWORD
+
+GITHUB_SECRETS_PATH=$GITHUB_SECRETS_PATH_VALUE
+GITHUB_SECRETS_KEY=$GITHUB_SECRETS_KEY_VALUE
 
 REDIS_HOST=redis
 REDIS_PORT=6379
@@ -120,10 +129,35 @@ cp "$ENV_FILE" "$CONFIG_ENV_FILE"
 echo "[setup] Wrote $ENV_FILE and $CONFIG_ENV_FILE"
 
 if command -v docker >/dev/null 2>&1; then
+  ensure_network() {
+    local network_name="vibe-network"
+    if docker network ls --format '{{.Name}}' | grep -qx "$network_name"; then
+      echo "[setup] Docker network '$network_name' already exists."
+    else
+      echo "[setup] Creating docker network '$network_name'..."
+      docker network create \
+        --driver bridge \
+        --subnet 172.30.0.0/16 \
+        --opt com.docker.network.bridge.name=vibe0 \
+        "$network_name"
+    fi
+  }
+
+  build_project_images() {
+    if [[ -x "$BUILD_IMAGES_SCRIPT" ]]; then
+      echo "[setup] Building base project images..."
+      "$BUILD_IMAGES_SCRIPT" || echo "[setup] Failed to build project images" >&2
+    else
+      echo "[setup] Project image builder not found ($BUILD_IMAGES_SCRIPT)." >&2
+    fi
+  }
+
   read -r -p "[setup] Start services with 'docker compose up -d'? [y/N]: " start_choice || true
   case "${start_choice,,}" in
     y|yes)
       echo "[setup] Launching docker compose stack..."
+      ensure_network
+      build_project_images
       docker compose up -d
       docker compose ps
       ;;

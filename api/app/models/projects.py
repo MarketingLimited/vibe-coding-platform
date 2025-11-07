@@ -60,6 +60,7 @@ class ProjectInfo(BaseModel):
     container_id: Optional[str]
     database: str
     redis: bool
+    preview_url: Optional[str]
 
 
 class ProjectDelete(ProjectAuth):

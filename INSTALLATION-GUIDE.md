@@ -17,9 +17,9 @@ curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platfor
 2. ينشئ المجلدات:
    - `/opt/vibe-coding` للتطبيقات.
    - `/var/lib/vibe-coding` للبيانات (`projects`, `logs`).
-3. يستنسخ المستودع ويولّد ملفي `.env` (`config/.env` و `.env`) مع قيم افتراضية عبر نفس منطق السكربت التفاعلي `tools/setup/activate.sh`.
+3. يستنسخ المستودع ويولّد ملفي `.env` (`config/.env` و `.env`) مع قيم افتراضية عبر نفس منطق السكربت التفاعلي `tools/setup/activate.sh`، بما في ذلك مفتاح تشفير GitHub (`GITHUB_SECRETS_KEY`) ومسار التخزين (`/data/github-secrets.bin`).
 4. ينشئ شبكة `vibe-network` إذا لم تكن موجودة.
-5. يبني الصور (`api`, `project-manager`, `cleanup`) ويشغّل `docker compose up -d`.
+5. يبني الصور (`api`, `project-manager`, `cleanup`) ويشغّل سكربت `tools/build-project-images.sh` لبناء صور المشاريع الافتراضية، ثم يستدعي `docker compose up -d`.
 6. يضيف أوامر مساعدة (`vibe-status`, `vibe-logs`, `vibe-update`, ...).
 
 ## 3. التثبيت اليدوي (لبيئات التطوير)
@@ -29,12 +29,8 @@ cd vibe-coding-platform
 bash tools/setup/activate.sh
 ```
 سيطرح عليك السكربت مسار البيانات، منافذ الخدمات، مفاتيح الإدارة، وبريد التنبيهات، ثم يقوم بإنشاء
-ملفات البيئة وتشغيل `docker compose up -d` (أو يمنحك خيار التخطي). ما زلت بحاجة للتأكد من توفر
-الشبكة المشتركة مرة واحدة فقط:
-
-```bash
-docker network create vibe-network  # يتم تجاهله تلقائياً إذا كانت الشبكة موجودة
-```
+ملفات البيئة (مع توليد `GITHUB_SECRETS_KEY`)، إنشاء شبكة `vibe-network` عند الحاجة، تشغيل سكربت
+`tools/build-project-images.sh` لبناء الصور الأساسية، وأخيراً تنفيذ `docker compose up -d` (أو يمنحك خيار التخطي).
 
 ## 4. التحقق بعد التثبيت
 - `curl http://localhost:9000/health` → صحة Central API.
@@ -63,7 +59,7 @@ curl -X POST http://localhost:9000/projects/create \
         "project_type": "python"
       }'
 ```
-الاستجابة ستحتوي على `project_id` و`password`. استخدمها للوصول للمشروع عبر `/projects/info` أو لتنفيذ الأوامر عبر `/exec`.
+الاستجابة ستحتوي على `project_id`, `password`, و`preview_url`. استخدمها للوصول للمشروع عبر `/projects/info` أو لتنفيذ الأوامر عبر `/exec`، وشارك رابط المعاينة مباشرة مع المستخدم.
 
 ## 7. مسارات العمل الأساسية
 1. **إنشاء مشروع** → `POST /projects/create` (يتطلب `X-API-Key`).
@@ -93,7 +89,7 @@ curl -X POST http://localhost:9000/projects/create \
 | المشكلة | الفحص | الحل |
 |---------|-------|------|
 | API لا يستجيب | `docker compose logs api` | تأكد من صحة إعدادات Redis ووجود `API_KEY` في `.env` |
-| Project Manager يفشل في إنشاء الحاوية | `docker compose logs project-manager` | تأكد من وجود صور `vibe-project-*` أو قم ببنائها من `project-manager/templates/images` |
+| Project Manager يفشل في إنشاء الحاوية | `docker compose logs project-manager` | تأكد من وجود صور `vibe-project-*` أو أعد تشغيل `tools/build-project-images.sh` |
 | الأوامر لا تعمل | تحقق من `POST /projects/info` | تأكد من صحة كلمة المرور وحالة الحاوية |
 | Cleanup يحذف مشروعاً نشطاً | تحقق من Redis (`project:<id>`) | عدّل قيمة `MAX_PROJECT_AGE_DAYS` أو حدّث حالة المشروع إلى `active` |
 | حالة الحاوية لا تتحدث | `docker compose logs project-manager` | تحقق من اتصال Redis واضبط `HEALTH_POLL_INTERVAL` إلى قيمة مناسبة |
@@ -102,7 +98,7 @@ curl -X POST http://localhost:9000/projects/create \
 
 ## 11. تحديث الصور أو القوالب
 - لتعديل قوالب المشاريع: عدّل الملفات داخل `projects/templates/default` ثم أعد بناء صورة المشروع إذا لزم.
-- لتحديث صور اللغات: حدّث Dockerfiles داخل `project-manager/templates/images` ثم شغّل `docker build -t vibe-project-python:latest project-manager/templates/images/python` (مع استبدال الاسم عند الحاجة).
+- لتحديث صور اللغات: حدّث Dockerfiles داخل `project-manager/templates/images` ثم شغّل `tools/build-project-images.sh --no-cache` (يمكن تغيير البادئة عبر `--prefix`).
 
 باتباع هذه الخطوات يتم نشر المنصة وتشغيلها مع البنية الجديدة المتوافقة مع خطة GPT Actions.
 

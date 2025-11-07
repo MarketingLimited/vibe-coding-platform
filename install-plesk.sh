@@ -19,6 +19,7 @@ NC='\033[0m'
 # Configuration
 INSTALL_DIR="/opt/vibe-coding"
 DATA_DIR="/var/lib/vibe-coding"
+BUILD_IMAGES_SCRIPT="$INSTALL_DIR/tools/build-project-images.sh"
 LOG_FILE="/var/log/vibe-coding-install.log"
 API_PORT="${VIBE_API_PORT:-9000}"
 DOMAIN="${VIBE_DOMAIN:-localhost}"
@@ -145,10 +146,12 @@ download_files() {
 
 generate_secrets() {
     log "توليد المفاتيح الأمنية..."
-    
+
     API_KEY=$(openssl rand -hex 32)
     DB_PASSWORD=$(openssl rand -base64 24 | tr -d "=+/" | cut -c1-20)
     PROJECT_MANAGER_PORT=9400
+    GITHUB_SECRETS_KEY=$(openssl rand -hex 32)
+    GITHUB_SECRETS_PATH="/data/github-secrets.bin"
 
     cat > "$INSTALL_DIR/config/.env" << EOF
 # Vibe Coding Platform Configuration
@@ -165,6 +168,10 @@ DOMAIN=$DOMAIN
 # Database
 DB_PATH=/data/projects.db
 DB_PASSWORD=$DB_PASSWORD
+
+# GitHub secrets storage
+GITHUB_SECRETS_PATH=$GITHUB_SECRETS_PATH
+GITHUB_SECRETS_KEY=$GITHUB_SECRETS_KEY
 
 # Paths
 INSTALL_DIR=$INSTALL_DIR
@@ -234,10 +241,17 @@ create_docker_network() {
 
 build_images() {
     log "بناء صور Docker (قد يستغرق بضع دقائق)..."
-    
+
     cd "$INSTALL_DIR"
     docker compose build --no-cache
-    
+
+    if [ -x "$BUILD_IMAGES_SCRIPT" ]; then
+        log "بناء صور المشاريع الأساسية..."
+        "$BUILD_IMAGES_SCRIPT"
+    else
+        warn "لم يتم العثور على سكربت بناء صور المشاريع ($BUILD_IMAGES_SCRIPT)"
+    fi
+
     success "تم بناء الصور"
 }
 
@@ -343,6 +357,7 @@ ${GREEN}════════════════════════
 ${BLUE}📋 معلومات الوصول:${NC}
    - API Endpoint:  http://localhost:$API_PORT
    - API Key:       $API_KEY
+   - GitHub Secrets: /data/github-secrets.bin (المفتاح داخل config/.env)
    - Health Check:  http://localhost:$API_PORT/health
 
 ${YELLOW}⚠️  مهم للأمان:${NC}
@@ -363,6 +378,7 @@ ${BLUE}📂 المجلدات:${NC}
    البيانات:   $DATA_DIR
    السجلات:    $DATA_DIR/logs
    التكوين:    $INSTALL_DIR/config/.env
+   صور المشاريع: tools/build-project-images.sh
 
 ${BLUE}🔌 إعداد GPT Action:${NC}
    1. في ChatGPT GPT Builder → Actions

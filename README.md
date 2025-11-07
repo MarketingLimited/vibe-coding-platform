@@ -46,8 +46,8 @@ curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platfor
 يقوم السكربت بالمهام التالية:
 1. التحقق من النظام وإعداد Docker.
 2. إنشاء مجلد التثبيت `/opt/vibe-coding` ومجلد البيانات `/var/lib/vibe-coding`.
-3. تنزيل المستودع، توليد مفاتيح الوصول، وإنشاء ملف `.env`.
-4. بناء صور الخدمات (API، Project Manager، Cleanup، Redis).
+3. تنزيل المستودع، توليد مفاتيح الوصول، وإنشاء ملف `.env` (يتضمن الآن مفتاح تشفير GitHub سري يتم حفظه في `/data/github-secrets.bin`).
+4. بناء صور الخدمات (API، Project Manager، Cleanup، Redis) ثم تشغيل سكربت `tools/build-project-images.sh` لبناء صور المشاريع الأساسية (`vibe-project-<type>`).
 5. تشغيل الخدمات عبر `docker compose up -d`.
 6. إنشاء أوامر مساعدة مثل `vibe-status`, `vibe-logs`, `vibe-update`.
 
@@ -58,8 +58,9 @@ cd vibe-coding-platform
 bash tools/setup/activate.sh
 ```
 
-سيقوم السكربت التفاعلي بتجهيز ملفات البيئة (`.env` و`config/.env`) وتوليد المفاتيح الافتراضية،
-ثم يتيح لك تشغيل الخدمات مباشرة عبر `docker compose` بخطوة واحدة.
+سيقوم السكربت التفاعلي بتجهيز ملفات البيئة (`.env` و`config/.env`) وتوليد المفاتيح الافتراضية
+بما في ذلك مفتاح تشفير أسرار GitHub، ثم ينشئ شبكة `vibe-network` إن لم تكن موجودة ويستدعي
+`tools/build-project-images.sh` لضمان توفر صور المشاريع قبل تشغيل الخدمات مباشرة عبر `docker compose` بخطوة واحدة.
 
 ## 🧩 مكونات النظام
 ### 1. Central API (`api/`)
@@ -69,6 +70,7 @@ bash tools/setup/activate.sh
 - يستدعي خدمة Project Manager لإنشاء/حذف الحاويات وتنفيذ الأوامر.
 - يتضمن نقاط `/health` و`/health/services` لرصد Redis، SQLite، Docker، وخدمة Project Manager بالإضافة إلى حدود المعدل الحالية، مع نقطة `/metrics` لالتقاط مؤشرات Prometheus.
 - طبقة Rate Limiter مبنية على Redis للتحكم في إنشاء المشاريع، الاستعلام، والتشغيل لكل مشروع.
+- يخزن مفاتيح GitHub الشخصية داخل ملف مشفر (`GITHUB_SECRETS_PATH`) ولا يبدأ الخدمة إذا لم يتم توليد `GITHUB_SECRETS_KEY`.
 
 ### 2. Project Manager (`project-manager/`)
 - FastAPI داخلي يعمل على المنفذ 9400.
@@ -76,6 +78,7 @@ bash tools/setup/activate.sh
 - ينسخ قالب المشروع الافتراضي من `projects/templates/default` عند إنشاء مشروع جديد.
 - يوفر نقطة تنفيذ أوامر مع تحديد مسار العمل وحدود المخرجات.
 - يدفع تحديثات الحالة إلى Redis ويشغّل حلقة مراقبة تضبط حالة كل حاوية بشكل دوري (قابلة للضبط عبر `HEALTH_POLL_INTERVAL`).
+- يولّد عنوان المعاينة الحية لكل مشروع ويُخزّنه في Redis ليتم عرضه عبر الـ API.
 
 ### 3. Cleanup Service (`cleanup/`)
 - سكربت Python دوري يفحص المجلدات والمسارات كل فترة (افتراضياً 24 ساعة).
@@ -93,7 +96,7 @@ bash tools/setup/activate.sh
 4. راجع ملف `GPT-INSTRUCTIONS-MULTITENANT.md` للحصول على أفضل الممارسات حول إدارة الذاكرة وسير العمل.
 
 ## 📁 القوالب والصور
-- مجلد `project-manager/templates/images` يحتوي Dockerfiles لبناء صور المشاريع (Python، Node.js، PHP، Full Stack).
+- مجلد `project-manager/templates/images` يحتوي Dockerfiles لبناء صور المشاريع (Python، Node.js، PHP، Full Stack)، ويمكن إعادة بنائها دفعة واحدة عبر `tools/build-project-images.sh` (يدعم خيارات `--prefix` و`--tag`).
 - مجلد `projects/templates/default` يحتوي على `setup.sh` وملفات تعريفية يتم نسخها لكل مشروع جديد.
 
 ## 🛠️ أدوات المراقبة والإدارة
@@ -108,6 +111,7 @@ bash tools/setup/activate.sh
 - يقوم Project Manager بربط كل حاوية مشروع بالشبكة `vibe-proxy` ويولّد عنوان المعاينة `https://<project-id>.kazaaz.com` تلقائياً، ويمكن تغيير النطاق باستخدام المتغير `PREVIEW_DOMAIN`.
 - يمكن تخصيص المنافذ ونقاط الدخول عبر المتغيرات البيئية (`PREVIEW_INTERNAL_PORT`, `PREVIEW_ENTRYPOINTS`, `PREVIEW_SERVICE_SCHEME`) بما يتناسب مع الصور الخاصة بك.
 - تمت إضافة ملفات `infra/edge/traefik.yml` و`infra/edge/dynamic/certificates.yml` كبداية آمنة يمكن توسيعها لإضافة رؤوس أمان أو نطاقات إضافية عند الحاجة.
+- يعرض الـ API رابط المعاينة `preview_url` ضمن ردود `/projects/create`, `/projects/info`, و`/projects/{username}` لتسهيل مشاركة الرابط مباشرة مع المستخدم أو GPT.
 
 ## ✅ الاختبارات الموصى بها بعد التثبيت
 1. `curl http://localhost:9000/health` للتأكد من جاهزية الـ API.

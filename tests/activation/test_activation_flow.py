@@ -31,6 +31,17 @@ def test_activation_script_runs_and_invokes_docker(tmp_path):
     config_dir.mkdir(parents=True)
     shutil.copy(template, config_dir / ".env.example")
 
+    tools_dir = vibe_root / "tools"
+    tools_dir.mkdir(parents=True)
+    builder = tools_dir / "build-project-images.sh"
+    builder.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+echo "stub-build" >>"${DOCKER_LOG}"
+"""
+    )
+    builder.chmod(0o755)
+
     docker_log = tmp_path / "docker.log"
     stub_dir = tmp_path / "bin"
     stub_dir.mkdir()
@@ -82,7 +93,10 @@ def test_activation_script_runs_and_invokes_docker(tmp_path):
     assert "DB_PASSWORD=db-secret" in env_content
     assert "ADMIN_ALERT_EMAIL=alerts@vibe.local" in env_content
     assert "DATA_DIR=/srv/data" in env_content
+    assert "GITHUB_SECRETS_PATH=/data/github-secrets.bin" in env_content
+    assert any(line.startswith("GITHUB_SECRETS_KEY=") for line in env_content.splitlines())
 
     docker_calls = docker_log.read_text().strip().splitlines()
     assert any(line.startswith("docker compose up") for line in docker_calls)
     assert any(line.startswith("docker compose ps") for line in docker_calls)
+    assert "stub-build" in docker_calls

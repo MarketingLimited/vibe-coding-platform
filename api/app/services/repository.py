@@ -39,12 +39,19 @@ class ProjectRepository:
                         redis_enabled INTEGER NOT NULL DEFAULT 0,
                         password_hash TEXT NOT NULL,
                         container_id TEXT,
+                        preview_url TEXT,
                         status TEXT NOT NULL,
                         created_at TEXT NOT NULL,
                         updated_at TEXT NOT NULL
                     )
                     """
                 )
+                try:
+                    conn.execute("ALTER TABLE projects ADD COLUMN preview_url TEXT")
+                except sqlite3.OperationalError as exc:  # pragma: no cover - legacy upgrade path
+                    message = str(exc).lower()
+                    if "duplicate column" not in message:
+                        raise
                 conn.execute(
                     "CREATE INDEX IF NOT EXISTS idx_projects_username ON projects(username)"
                 )
@@ -60,11 +67,11 @@ class ProjectRepository:
                     INSERT INTO projects (
                         project_id, username, project_name, project_type,
                         database_engine, redis_enabled, password_hash,
-                        container_id, status, created_at, updated_at
+                        container_id, preview_url, status, created_at, updated_at
                     ) VALUES (
                         :project_id, :username, :project_name, :project_type,
                         :database, :redis_enabled, :password_hash,
-                        :container_id, :status, :created_at, :updated_at
+                        :container_id, :preview_url, :status, :created_at, :updated_at
                     )
                     ON CONFLICT(project_id) DO UPDATE SET
                         username=excluded.username,
@@ -74,6 +81,7 @@ class ProjectRepository:
                         redis_enabled=excluded.redis_enabled,
                         password_hash=excluded.password_hash,
                         container_id=excluded.container_id,
+                        preview_url=excluded.preview_url,
                         status=excluded.status,
                         updated_at=excluded.updated_at
                     """,
@@ -111,17 +119,24 @@ class ProjectRepository:
         return dict(row)
 
     def update_status(
-        self, project_id: str, status: str, container_id: Optional[str]
+        self,
+        project_id: str,
+        status: str,
+        container_id: Optional[str],
+        preview_url: Optional[str] = None,
     ) -> None:
         with self._lock:
             with self._connect() as conn:
                 conn.execute(
                     """
                     UPDATE projects
-                    SET status = ?, container_id = ?, updated_at = CURRENT_TIMESTAMP
+                    SET status = ?,
+                        container_id = ?,
+                        preview_url = COALESCE(?, preview_url),
+                        updated_at = CURRENT_TIMESTAMP
                     WHERE project_id = ?
                     """,
-                    (status, container_id, project_id),
+                    (status, container_id, preview_url, project_id),
                 )
 
     def update_password(self, project_id: str, password_hash: str) -> None:

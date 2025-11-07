@@ -17,6 +17,7 @@ def _sample_record(project_id: str) -> dict:
         "redis_enabled": 1,
         "password_hash": "hash",
         "container_id": "abc123",
+        "preview_url": "https://demo.example",
         "status": "active",
         "created_at": now,
         "updated_at": now,
