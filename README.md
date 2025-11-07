@@ -1,273 +1,115 @@
 # Vibe Coding Platform
 
-## 🎯 نظرة عامة
+منصة تطوير متعددة المستأجرين تعتمد على Docker وتتكامل مع ChatGPT Actions لتوفير بيئات تطوير معزولة يتم التحكم بها بالكامل من خلال واجهة برمجية واحدة.
 
-منصة تطوير متكاملة تمكّن GPT من العمل كمطور برمجي كامل عبر بيئات Docker معزولة. كل مشروع له بيئة مستقلة مع:
+## 🎯 أبرز المزايا
+- **API مركزي** مبني على FastAPI لإدارة المشاريع والمصادقة وتنفيذ الأوامر.
+- **خدمة Project Manager** تدير الحاويات، قوالب المشاريع، وحدود الموارد.
+- **خدمة Cleanup** للحفاظ على نظافة المسارات وإدارة السجلات القديمة بشكل دوري.
+- **طبقة بيانات دائمة** تحفظ بيانات المشاريع في SQLite مع مزامنة فورية إلى Redis.
+- **مراقبة خلفية** لحاويات المشاريع وتحديث حالة الحاويات في Redis بشكل آلي.
+- **سجلات تدقيق ومؤشرات مراقبة** تلتقط كل طلب عبر ملف `logs/audit.log` وتكشف `/metrics`
+  لصالح Prometheus.
+- **قوالب جاهزة** للغات Python وNode.js وPHP وبيئة كاملة متعددة الأدوات.
+- **سكربت تثبيت واحد** يقوم بإعداد الشبكات، بناء الصور، وتشغيل الخدمات بالاعتماد على Docker Compose.
+- **حماية من الإساءة** بفضل محددات معدل طلبات لكل مشروع ولكل عمليات إدارية، قابلة للضبط عبر المتغيرات البيئية.
 
-- ✅ **بيئة تطوير كاملة**: Python, Node.js, PHP, Go, Rust
-- ✅ **قواعد بيانات**: PostgreSQL, MySQL, SQLite
-- ✅ **Docker-in-Docker** عبر socket proxy آمن
-- ✅ **VS Code في المتصفح** (code-server)
-- ✅ **SSH معزول** لكل مشروع
-- ✅ **كاش معرفي ذكي** لتقليل استهلاك التوكنز
-- ✅ **مراقبة وسجلات** شاملة
-- ✅ **نظام أمان متعدد الطبقات**
-
-## 🏗️ المعمارية
-
+## 🏗️ نظرة على المعمارية
 ```
-kazaaz.com (Traefik + Let's Encrypt)
-├── /code/<project>  → VS Code (code-server)
-├── /api/<project>   → Exec API (FastAPI)
-└── SSH:<port>       → SSH معزول
-
-Projects Structure:
-├── infra/
-│   ├── traefik/          # Reverse proxy
-│   ├── monitoring/       # Prometheus + Grafana
-│   └── registry/         # Docker registry محلي
+workspace/
+├── api/                 # التطبيق المركزي (FastAPI)
+│   └── app/
+├── project-manager/     # خدمة إدارة الحاويات والقوالب
+│   └── templates/
+├── cleanup/             # خدمة التنظيف الدوري
 ├── projects/
-│   ├── template/         # قالب المشروع
-│   └── <project-name>/   # مشاريع الإنتاج
-└── tools/
-    ├── new-project.sh    # إنشاء مشروع جديد
-    ├── backup.sh         # النسخ الاحتياطي
-    └── cleanup.sh        # التنظيف
+│   └── templates/       # قوالب المشاريع الجاهزة
+├── infra/               # ملفات البنية التحتية الإضافية
+├── tools/               # سكربتات وأدوات مساعدة
+├── docker-compose.yml   # تعريف الخدمات
+└── install-plesk.sh     # سكربت التثبيت بنقرة واحدة
 ```
+الخدمات تتصل ببعضها البعض عبر شبكة `vibe-network` وتخزن بياناتها المشتركة ضمن مجلدات `/projects` و`/logs` على المضيف.
 
 ## 🚀 التثبيت السريع
-
 ### المتطلبات
-- Ubuntu 22.04 LTS أو أحدث
-- Docker 24+ و Docker Compose v2
-- 4GB RAM على الأقل (8GB موصى به)
-- 20GB مساحة قرص حرة
+- نظام Ubuntu 24.04 مع وصول root.
+- Docker 24+ و Docker Compose v2.
+- منفذ داخلي متاح للـ API (افتراضي 9000).
+- مساحة قرص لا تقل عن 20GB.
 
-### الخطوات
-
+### التثبيت الآلي
 ```bash
-# 1. استنساخ المشروع
-git clone https://github.com/your-org/vibe-coding-platform.git
+curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platform/main/install-plesk.sh | sudo bash
+```
+يقوم السكربت بالمهام التالية:
+1. التحقق من النظام وإعداد Docker.
+2. إنشاء مجلد التثبيت `/opt/vibe-coding` ومجلد البيانات `/var/lib/vibe-coding`.
+3. تنزيل المستودع، توليد مفاتيح الوصول، وإنشاء ملف `.env`.
+4. بناء صور الخدمات (API، Project Manager، Cleanup، Redis).
+5. تشغيل الخدمات عبر `docker compose up -d`.
+6. إنشاء أوامر مساعدة مثل `vibe-status`, `vibe-logs`, `vibe-update`.
+
+### التثبيت اليدوي (لبيئات التطوير)
+```bash
+git clone https://github.com/MarketingLimited/vibe-coding-platform.git
 cd vibe-coding-platform
-
-# 2. تهيئة البيئة
-./setup.sh
-
-# 3. تشغيل Traefik
-cd infra/traefik
-docker compose up -d
-
-# 4. إنشاء أول مشروع
-./tools/new-project.sh myapp 22221
-
-# 5. الوصول
-# Code: https://kazaaz.com/code/myapp
-# API:  https://kazaaz.com/api/myapp/exec
-# SSH:  ssh dev@your-server -p 22221
+cp config/.env.example config/.env
+cp config/.env .env
+# عدّل القيم المناسبة داخل ملفات env ثم شغّل
+docker compose up -d --build
 ```
 
-## 📦 المكونات
+## 🧩 مكونات النظام
+### 1. Central API (`api/`)
+- FastAPI مع هيكلية وحدات (`config`, `routers`, `services`).
+- مصادقة عبر `X-API-Key` مع دعم تدوير كلمات مرور المشاريع.
+- يعتمد على Redis وSQLite (`/data/projects.db`) لتخزين بيانات المشاريع وحالة الحاويات.
+- يستدعي خدمة Project Manager لإنشاء/حذف الحاويات وتنفيذ الأوامر.
+- يتضمن نقاط `/health` و`/health/services` لرصد Redis، SQLite، Docker، وخدمة Project Manager بالإضافة إلى حدود المعدل الحالية، مع نقطة `/metrics` لالتقاط مؤشرات Prometheus.
+- طبقة Rate Limiter مبنية على Redis للتحكم في إنشاء المشاريع، الاستعلام، والتشغيل لكل مشروع.
 
-### 1. Traefik (البوابة العكسية)
-- TLS تلقائي عبر Let's Encrypt
-- توجيه ديناميكي حسب المسارات
-- معدل محدود للطلبات
-- ضغط وتخزين مؤقت
+### 2. Project Manager (`project-manager/`)
+- FastAPI داخلي يعمل على المنفذ 9400.
+- يستخدم Docker SDK لإنشاء الحاويات بالاعتماد على صور `vibe-project-<type>`.
+- ينسخ قالب المشروع الافتراضي من `projects/templates/default` عند إنشاء مشروع جديد.
+- يوفر نقطة تنفيذ أوامر مع تحديد مسار العمل وحدود المخرجات.
+- يدفع تحديثات الحالة إلى Redis ويشغّل حلقة مراقبة تضبط حالة كل حاوية بشكل دوري (قابلة للضبط عبر `HEALTH_POLL_INTERVAL`).
 
-### 2. DevBox (بيئة التطوير)
-- أدوات كاملة للتطوير
-- عزل كامل بين المشاريع
-- نظام ملفات للقراءة فقط
-- حدود الموارد (CPU/Memory)
+### 3. Cleanup Service (`cleanup/`)
+- سكربت Python دوري يفحص المجلدات والمسارات كل فترة (افتراضياً 24 ساعة).
+- يحذف المشاريع غير النشطة بعد التحقق من الحالة في Redis وSQLite لضمان عدم حذف مشروع يعمل.
+- يحدد حجم ملفات السجلات لضمان عدم تضخمها.
+- يحسب استهلاك التخزين ويرسل تقرير JSON اختياري إلى Webhook عبر `NOTIFICATION_WEBHOOK`.
 
-### 3. Socket Proxy
-- وصول آمن لـ Docker API
-- قائمة بيضاء للعمليات
-- تسجيل كامل للأنشطة
+### 4. Redis
+- مخزن جلسات وبيانات مركزية للمشاريع والحالة التشغيلية.
 
-### 4. Exec API
-- تنفيذ أوامر مع حدود زمنية
-- قائمة بيضاء للأوامر
-- تسجيل وتدقيق شامل
-- حماية من الهجمات
+## 🔌 تكامل ChatGPT Actions
+1. استورد ملف `openapi-spec-multitenant.yaml` إلى GPT Builder.
+2. استخدم `X-API-Key` المولد ضمن ملف `config/.env` للمصادقة.
+3. مرر معرف المشروع وكلمة المرور عبر حقول الطلب لتنفيذ الأوامر.
+4. راجع ملف `GPT-INSTRUCTIONS-MULTITENANT.md` للحصول على أفضل الممارسات حول إدارة الذاكرة وسير العمل.
 
-### 5. Knowledge Cache
-- تحليل ذكي للمشروع
-- استخراج الوظائف والكلاسات
-- مخطط قواعد البيانات
-- تقليل استهلاك التوكنز
+## 📁 القوالب والصور
+- مجلد `project-manager/templates/images` يحتوي Dockerfiles لبناء صور المشاريع (Python، Node.js، PHP، Full Stack).
+- مجلد `projects/templates/default` يحتوي على `setup.sh` وملفات تعريفية يتم نسخها لكل مشروع جديد.
 
-## 🔒 الأمان
+## 🛠️ أدوات المراقبة والإدارة
+- `/var/lib/vibe-coding/logs` يجمع سجلات الخدمات الثلاثة، ويتضمن الآن ملف `audit.log` لجميع الطلبات.
+- أوامر الإدارة التي ينشئها السكربت (`vibe-status`, `vibe-logs`, ...) بالإضافة إلى سكربتات `tools/vibe-status.sh` و`tools/vibe-backup.sh` للاستخدام اليدوي.
+- نقاط `/health` و`/health/services` في الـ API للاطمئنان على Redis، قاعدة البيانات، Docker، وخدمة Project Manager، بالإضافة إلى `/metadata` للحصول على الحدود الحالية، وحلقة مراقبة Project Manager لتحديث الحالة كل بضع ثوانٍ.
+- مجلد `infra/monitoring/` يحتوي حزمة Prometheus/Grafana اختيارية لمراقبة المنصة وتشغيلها بجوار الخدمات الأساسية.
 
-- ✅ مستخدم غير جذر في جميع الحاويات
-- ✅ نظام ملفات للقراءة فقط
-- ✅ إسقاط جميع القدرات الخطرة
-- ✅ عزل الشبكات بين المشاريع
-- ✅ قوائم بيضاء للأوامر
-- ✅ معدل محدود للطلبات
-- ✅ مراقبة وتنبيهات
-- ✅ تشفير SSL/TLS إلزامي
-- ✅ مصادقة متعددة الطبقات
-
-## 📊 المراقبة
-
-```bash
-# الوصول لـ Grafana
-https://kazaaz.com/monitoring
-
-# المقاييس المتوفرة:
-- استخدام CPU/Memory لكل مشروع
-- عدد الطلبات والأخطاء
-- زمن الاستجابة
-- استهلاك القرص
-- سجلات الأنشطة
-```
-
-## 🔧 الإدارة
-
-### إنشاء مشروع جديد
-```bash
-./tools/new-project.sh <name> <ssh-port> [options]
-
-# مثال
-./tools/new-project.sh ecommerce 22230 --with-postgres --with-redis
-```
-
-### النسخ الاحتياطي
-```bash
-./tools/backup.sh <project> [destination]
-
-# نسخ احتياطي لجميع المشاريع
-./tools/backup.sh --all /backup/location
-```
-
-### التنظيف
-```bash
-# حذف الملفات المؤقتة والحاويات القديمة
-./tools/cleanup.sh
-
-# حذف مشروع كامل
-./tools/cleanup.sh --project myapp --confirm
-```
-
-## 🔌 التكامل مع GPT
-
-### 1. إضافة Action في ChatGPT
-انسخ ملف `openapi-spec.yaml` إلى إعدادات GPT Action
-
-### 2. إضافة مفتاح المصادقة
-```
-Header: X-API-Key
-Value: your-secure-api-key
-```
-
-### 3. تحديث Instructions
-انسخ محتوى `gpt-instructions.md` إلى قسم Instructions
-
-### 4. رفع Knowledge Base
-ارفع `gpt-knowledge-base.md` في قسم Knowledge
-
-## 📝 أمثلة الاستخدام
-
-### مسح المشروع
-```bash
-curl -X POST https://kazaaz.com/api/myapp/exec \
-  -H "X-API-Key: your-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cmd": "tree -L 2 -I \".git|node_modules\"",
-    "cwd": "/workspace"
-  }'
-```
-
-### تشغيل خادم تطوير React
-```bash
-curl -X POST https://kazaaz.com/api/myapp/exec \
-  -H "X-API-Key: your-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cmd": "pnpm install && pnpm dev",
-    "cwd": "/workspace/frontend"
-  }'
-```
-
-### توليد الكاش المعرفي
-```bash
-curl -X POST https://kazaaz.com/api/myapp/exec \
-  -H "X-API-Key: your-key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cmd": "python3 /opt/tools/knowledge_cache.py",
-    "cwd": "/workspace"
-  }'
-```
-
-## 🎓 أفضل الممارسات
-
-### للمطورين
-1. استخدم الكاش المعرفي قبل أي تعديل
-2. نفذ أوامر قصيرة ومحددة
-3. راقب المخرجات والأخطاء
-4. حدث الكاش بعد التغييرات الكبيرة
-
-### للإدارة
-1. نسخ احتياطي دوري (يومي)
-2. مراقبة استهلاك الموارد
-3. تحديث الصور الأساسية شهريًا
-4. مراجعة السجلات أسبوعيًا
-
-## 🐛 استكشاف الأخطاء
-
-### المشروع لا يستجيب
-```bash
-# فحص حالة الحاويات
-docker compose -f projects/myapp/docker-compose.yml ps
-
-# فحص السجلات
-docker compose -f projects/myapp/docker-compose.yml logs -f
-```
-
-### خطأ في المصادقة
-```bash
-# التحقق من مفتاح API
-grep X-API-Key projects/myapp/.env
-
-# إعادة توليد المفتاح
-./tools/rotate-api-key.sh myapp
-```
-
-### نفاد المساحة
-```bash
-# تنظيف Docker
-docker system prune -af --volumes
-
-# تنظيف السجلات القديمة
-./tools/cleanup-logs.sh --older-than 30d
-```
-
-## 📚 الوثائق الإضافية
-
-- [دليل المطورين](docs/developer-guide.md)
-- [دليل الإدارة](docs/admin-guide.md)
-- [مرجع API](docs/api-reference.md)
-- [أسئلة شائعة](docs/faq.md)
+## ✅ الاختبارات الموصى بها بعد التثبيت
+1. `curl http://localhost:9000/health` للتأكد من جاهزية الـ API.
+2. `curl http://localhost:9000/health/services` للحصول على حالة المكونات الداخلية وحدود المعدل.
+3. إنشاء مشروع تجريبي عبر `POST /projects/create` ثم تنفيذ أمر عبر `/exec`.
+4. التحقق من أن خدمة Project Manager تعيد الحالة عبر `curl http://localhost:9400/health` من داخل المضيف.
+5. تشغيل `pytest` من جذر المستودع للتحقق من محددات المعدل، مستودع المشاريع، ومنطق خدمة التنظيف.
 
 ## 🤝 المساهمة
+- افتح تذكرة جديدة لأي تحسين أو مشكلة.
+- تأكد من تشغيل `docker compose build` بعد أي تعديل على الصور أو متطلبات الخدمات.
+- أضف اختبارات أو لقطات من السجلات عند المساهمة في منطق إدارة المشاريع أو التنظيف.
 
-نرحب بالمساهمات! يرجى قراءة [دليل المساهمة](CONTRIBUTING.md)
-
-## 📄 الترخيص
-
-MIT License - انظر [LICENSE](LICENSE)
-
-## 📞 الدعم
-
-- 📧 Email: support@kazaaz.com
-- 💬 Discord: [رابط الخادم]
-- 📖 Wiki: [رابط الويكي]
-
-## 🙏 شكر خاص
-
-- Traefik لنظام التوجيه الرائع
-- Code-Server لـ VS Code في المتصفح
-- FastAPI لـ API السريع والموثوق

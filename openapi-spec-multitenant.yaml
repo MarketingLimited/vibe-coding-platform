@@ -93,6 +93,40 @@ paths:
                   projects_count:
                     type: integer
 
+  /health/services:
+    get:
+      operationId: healthServices
+      summary: تفاصيل صحة الخدمات الداخلية وحدود المعدل
+      tags: [System]
+      security: []
+      responses:
+        '200':
+          description: ملخص حالة Redis وSQLite وDocker وخدمة Project Manager.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: healthy أو degraded حسب حالة المكونات.
+                  timestamp:
+                    type: string
+                  components:
+                    type: object
+                    additionalProperties:
+                      type: object
+                      additionalProperties: true
+                  limits:
+                    type: object
+                    properties:
+                      rate_window_seconds:
+                        type: integer
+                      exec_limit_per_minute:
+                        type: integer
+                      project_create_limit:
+                        type: integer
+
   /projects/create:
     post:
       operationId: createProject
