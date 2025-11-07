@@ -17,7 +17,7 @@ curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platfor
 2. ينشئ المجلدات:
    - `/opt/vibe-coding` للتطبيقات.
    - `/var/lib/vibe-coding` للبيانات (`projects`, `logs`).
-3. يستنسخ المستودع ويولّد ملفي `.env` (`config/.env` و `.env`) مع قيم افتراضية لـ `HEALTH_POLL_INTERVAL` و`NOTIFICATION_WEBHOOK`.
+3. يستنسخ المستودع ويولّد ملفي `.env` (`config/.env` و `.env`) مع قيم افتراضية عبر نفس منطق السكربت التفاعلي `tools/setup/activate.sh`.
 4. ينشئ شبكة `vibe-network` إذا لم تكن موجودة.
 5. يبني الصور (`api`, `project-manager`, `cleanup`) ويشغّل `docker compose up -d`.
 6. يضيف أوامر مساعدة (`vibe-status`, `vibe-logs`, `vibe-update`, ...).
@@ -26,26 +26,15 @@ curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platfor
 ```bash
 git clone https://github.com/MarketingLimited/vibe-coding-platform.git
 cd vibe-coding-platform
-cp config/.env.example config/.env
-cp config/.env .env
-# حدّث القيم المناسبة ثم شغّل
-redis_password=... # إن رغبت في إعداد مخصص
-API_KEY=...        # مفتاح الواجهة البرمجية
-sed -i "s/change-me/${API_KEY}/" config/.env
-
-# مثال على ضبط حدود المعدل الافتراضية (اختياري):
-RATE_LIMIT_PER_MINUTE=100
-RATE_LIMIT_WINDOW_SECONDS=60
-EXEC_RATE_LIMIT_PER_MINUTE=60
-PROJECT_CREATE_RATE_LIMIT=5
-PROJECT_INFO_RATE_LIMIT=30
-PASSWORD_ROTATE_RATE_LIMIT=4
-PROJECT_DELETE_RATE_LIMIT=4
-
-# تشغيل الخدمات
-docker compose up -d --build
+bash tools/setup/activate.sh
 ```
-> ملاحظة: تأكد من إنشاء شبكة `vibe-network` في حال لم تكن موجودة: `docker network create vibe-network`.
+سيطرح عليك السكربت مسار البيانات، منافذ الخدمات، مفاتيح الإدارة، وبريد التنبيهات، ثم يقوم بإنشاء
+ملفات البيئة وتشغيل `docker compose up -d` (أو يمنحك خيار التخطي). ما زلت بحاجة للتأكد من توفر
+الشبكة المشتركة مرة واحدة فقط:
+
+```bash
+docker network create vibe-network  # يتم تجاهله تلقائياً إذا كانت الشبكة موجودة
+```
 
 ## 4. التحقق بعد التثبيت
 - `curl http://localhost:9000/health` → صحة Central API.
