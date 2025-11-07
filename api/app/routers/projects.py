@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
@@ -12,8 +13,10 @@ from ..dependencies import (
 )
 from ..models.projects import ProjectAuth, ProjectCreate
 from ..services.auth import generate_project_id, verify_master_key
-from ..services.rate_limiter import RateLimiter
 from ..services.projects import ProjectService
+from ..services.rate_limiter import RateLimiter
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -70,6 +73,29 @@ async def create_project(
     container_id = manager_response.get("container_id") or ""
     status = manager_response.get("status", "active")
     record = project_service.create_project_record(payload, container_id, status)
+
+    secret_payload = {
+        "username": payload.username,
+        "github_api_key": payload.github_api_key,
+        "additional_secrets": payload.additional_secrets,
+    }
+    try:
+        await project_manager.sync_project_secrets(project_id, secret_payload)
+    except Exception as exc:
+        logger.exception(
+            "Failed to sync project secrets", extra={"project_id": project_id, "error": str(exc)}
+        )
+        project_service.remove_project(project_id)
+        try:
+            await project_manager.delete_project(project_id)
+        except Exception:  # pragma: no cover - best effort rollback
+            logger.warning(
+                "Rollback delete failed after secret sync error", extra={"project_id": project_id}
+            )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to synchronise project secrets. Please retry.",
+        ) from exc
 
     return {
         "project_id": record["project_id"],

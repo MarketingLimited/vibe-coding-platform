@@ -6,6 +6,8 @@ import base64
 import hashlib
 import json
 import logging
+import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from threading import RLock
 from typing import Dict, Mapping, Optional
@@ -20,19 +22,17 @@ class SecretStorageError(RuntimeError):
 
 
 class SecretStorage:
-    """Persist GitHub credentials encrypted at rest on disk."""
+    """Persist GitHub credentials encrypted at rest inside SQLite."""
 
     def __init__(self, storage_path: Path, encryption_key: str) -> None:
         if not encryption_key:
             raise ValueError("encryption_key is required for SecretStorage")
 
-        self._path = storage_path
+        self._db_path = storage_path
         self._lock = RLock()
         self._fernet = Fernet(self._normalise_key(encryption_key))
 
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        if not self._path.exists():
-            self._write({})
+        self._initialise()
 
     # ------------------------------------------------------------------
     # Public API
@@ -50,40 +50,79 @@ class SecretStorage:
         if not github_api_key:
             raise ValueError("github_api_key is required")
 
-        payload = self._read()
-        payload[project_id] = {
+        payload = {
             "github_api_key": github_api_key,
             "additional_secrets": dict(additional_secrets or {}),
         }
-        self._write(payload)
+        encrypted = self._encrypt(payload)
+        timestamp = datetime.now(timezone.utc).isoformat()
+
+        with self._lock:
+            with self._connect() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO project_secrets (project_id, payload, created_at, updated_at)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(project_id) DO UPDATE SET
+                        payload = excluded.payload,
+                        updated_at = excluded.updated_at
+                    """,
+                    (project_id, encrypted, timestamp, timestamp),
+                )
 
         logger.info("Stored encrypted GitHub credentials", extra={"project_id": project_id})
 
     def get_project_secrets(self, project_id: str) -> Optional[Dict[str, object]]:
         """Return decrypted secrets for a project, if available."""
 
-        payload = self._read()
-        entry = payload.get(project_id)
-        if not entry:
+        with self._lock:
+            with self._connect() as conn:
+                row = conn.execute(
+                    "SELECT payload FROM project_secrets WHERE project_id = ?",
+                    (project_id,),
+                ).fetchone()
+
+        if not row:
             return None
 
-        return {
-            "github_api_key": entry.get("github_api_key", ""),
-            "additional_secrets": dict(entry.get("additional_secrets", {})),
-        }
+        try:
+            return self._decrypt(row[0])
+        except SecretStorageError:
+            raise
+        except Exception as exc:  # pragma: no cover - defensive guard
+            raise SecretStorageError("Failed to load project secrets") from exc
 
     def delete_project_secrets(self, project_id: str) -> None:
         """Remove secrets associated with the project."""
 
-        payload = self._read()
-        if project_id in payload:
-            payload.pop(project_id)
-            self._write(payload)
-            logger.info("Deleted secrets for project", extra={"project_id": project_id})
+        with self._lock:
+            with self._connect() as conn:
+                conn.execute("DELETE FROM project_secrets WHERE project_id = ?", (project_id,))
+
+        logger.info("Deleted secrets for project", extra={"project_id": project_id})
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
+    def _connect(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(self._db_path)
+        return connection
+
+    def _initialise(self) -> None:
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        with self._lock:
+            with self._connect() as conn:
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS project_secrets (
+                        project_id TEXT PRIMARY KEY,
+                        payload BLOB NOT NULL,
+                        created_at TEXT NOT NULL,
+                        updated_at TEXT NOT NULL
+                    )
+                    """
+                )
+
     def _normalise_key(self, raw_key: str) -> bytes:
         """Return a Fernet compatible base64 key derived from the raw input."""
 
@@ -98,30 +137,17 @@ class SecretStorage:
         digest = hashlib.sha256(key.encode("utf-8")).digest()
         return base64.urlsafe_b64encode(digest)
 
-    def _read(self) -> Dict[str, Dict[str, object]]:
-        with self._lock:
-            if not self._path.exists():
-                return {}
-
-            data = self._path.read_bytes()
-            if not data:
-                return {}
-
-            try:
-                decrypted = self._fernet.decrypt(data)
-            except InvalidToken as exc:
-                raise SecretStorageError("Unable to decrypt secrets storage") from exc
-
-            try:
-                return json.loads(decrypted.decode("utf-8"))
-            except json.JSONDecodeError as exc:
-                raise SecretStorageError("Secrets storage is corrupted") from exc
-
-    def _write(self, payload: Dict[str, Dict[str, object]]) -> None:
+    def _encrypt(self, payload: Dict[str, object]) -> bytes:
         serialised = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
-        token = self._fernet.encrypt(serialised)
+        return self._fernet.encrypt(serialised)
 
-        with self._lock:
-            tmp_path = self._path.with_suffix(".tmp")
-            tmp_path.write_bytes(token)
-            tmp_path.replace(self._path)
+    def _decrypt(self, token: bytes) -> Dict[str, object]:
+        try:
+            decrypted = self._fernet.decrypt(token)
+        except InvalidToken as exc:
+            raise SecretStorageError("Unable to decrypt secrets storage") from exc
+
+        try:
+            return json.loads(decrypted.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            raise SecretStorageError("Secrets storage is corrupted") from exc

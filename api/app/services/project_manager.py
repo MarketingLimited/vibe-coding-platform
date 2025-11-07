@@ -45,3 +45,15 @@ class ProjectManagerClient:
         )
         response.raise_for_status()
         return response.json()
+
+    async def sync_project_secrets(self, project_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Propagate GitHub credentials to the project-manager service."""
+
+        response = await self._client.post(
+            f"{self._base_url}/internal/projects/{project_id}/secrets",
+            json=payload,
+        )
+        response.raise_for_status()
+        data = response.json()
+        logger.info("Project-manager synced secrets", extra={"project_id": project_id})
+        return data
