@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     health_poll_interval: int = Field(60, env="HEALTH_POLL_INTERVAL")
     gh_config_dir: Path = Field(Path("/root/.config/gh"), env="GH_CONFIG_DIR")
 
+    domain_events_webhook: Optional[str] = Field(None, env="DOMAIN_EVENTS_WEBHOOK")
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

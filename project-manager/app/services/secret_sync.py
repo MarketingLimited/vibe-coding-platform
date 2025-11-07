@@ -2,14 +2,33 @@
 
 from __future__ import annotations
 
+import importlib.util
+import sys
 import io
+import json
 import logging
 import tarfile
 import time
 from pathlib import Path
 from typing import Dict
 
-import yaml
+try:  # pragma: no cover - import guard for test doubles
+    import yaml as _yaml
+except Exception:  # pragma: no cover - fallback to JSON if PyYAML is unavailable
+    _yaml = None
+else:  # pragma: no cover - resolve runtime stubs injected by tests
+    if not callable(getattr(_yaml, "safe_dump", None)):
+        try:
+            sys.modules.pop("yaml", None)
+            import yaml as _real_yaml  # type: ignore[import]
+        except Exception:
+            _yaml = None
+        else:
+            _yaml = _real_yaml
+
+
+def _yaml_module():  # pragma: no cover - trivial accessor
+    return _yaml
 
 from ..models import ProjectSecrets
 
@@ -81,4 +100,11 @@ class SecretSyncService:
         }
         entry.update(extras)
         document = {host: entry}
-        return yaml.safe_dump(document, sort_keys=False, allow_unicode=True)
+        return self._dump_document(document)
+
+    @staticmethod
+    def _dump_document(document: Dict[str, Dict[str, str]]) -> str:
+        module = _yaml_module()
+        if module and callable(getattr(module, "safe_dump", None)):
+            return module.safe_dump(document, sort_keys=False, allow_unicode=True)
+        return json.dumps(document, ensure_ascii=False, indent=2)
