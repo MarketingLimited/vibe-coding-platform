@@ -1,0 +1,9 @@
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/wildcard.kazaaz.com.crt
+        keyFile: /certs/wildcard.kazaaz.com.key
+  certificates:
+    - certFile: /certs/wildcard.kazaaz.com.crt
+      keyFile: /certs/wildcard.kazaaz.com.key

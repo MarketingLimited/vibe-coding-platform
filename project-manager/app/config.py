@@ -11,7 +11,14 @@ class Settings(BaseSettings):
 
     docker_host: Optional[str] = Field(None, env="DOCKER_HOST")
     network_name: str = Field("vibe-network", env="NETWORK_NAME")
+    proxy_network_name: Optional[str] = Field("vibe-proxy", env="PROXY_NETWORK_NAME")
     image_prefix: str = Field("vibe-project", env="IMAGE_PREFIX")
+
+    preview_domain: Optional[str] = Field("kazaaz.com", env="PREVIEW_DOMAIN")
+    preview_scheme: str = Field("https", env="PREVIEW_SCHEME")
+    preview_internal_port: int = Field(4173, env="PREVIEW_INTERNAL_PORT")
+    preview_entrypoints: str = Field("websecure", env="PREVIEW_ENTRYPOINTS")
+    preview_service_scheme: str = Field("http", env="PREVIEW_SERVICE_SCHEME")
 
     default_cpu_limit: float = Field(2.0, env="DEFAULT_CPU_LIMIT")
     default_memory_limit: str = Field("4G", env="DEFAULT_MEMORY_LIMIT")

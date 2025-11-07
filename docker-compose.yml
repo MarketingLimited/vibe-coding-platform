@@ -11,6 +11,9 @@ networks:
   vibe-network:
     external: true
     name: vibe-network
+  vibe-proxy:
+    driver: bridge
+    name: vibe-proxy
 
 volumes:
   api_data:
@@ -21,6 +24,35 @@ volumes:
     name: vibe_redis_data
 
 services:
+
+  # ===========================================================================
+  # Edge Proxy - Traefik with wildcard TLS
+  # ===========================================================================
+  edge-proxy:
+    image: traefik:v2.11
+    container_name: vibe-edge-proxy
+    hostname: vibe-edge
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./infra/edge/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./infra/edge/dynamic:/etc/traefik/dynamic:ro
+      - ${DATA_DIR}/certs:/certs:ro
+
+    networks:
+      - vibe-proxy
+
+    security_opt:
+      - no-new-privileges:true
+
+    labels:
+      - "com.vibe-coding.service=edge-proxy"
+      - "com.vibe-coding.version=2.0"
   
   # ===========================================================================
   # Central API - Multi-tenant FastAPI
@@ -86,6 +118,7 @@ services:
     
     networks:
       - vibe-network
+      - vibe-proxy
     
     volumes:
       - api_data:/data
@@ -145,7 +178,13 @@ services:
       - DOCKER_HOST=unix:///var/run/docker.sock
       - PROJECTS_DIR=/projects
       - NETWORK_NAME=vibe-network
+      - PROXY_NETWORK_NAME=${PROXY_NETWORK_NAME:-vibe-proxy}
       - IMAGE_PREFIX=vibe-project
+      - PREVIEW_DOMAIN=${PREVIEW_DOMAIN:-kazaaz.com}
+      - PREVIEW_SCHEME=${PREVIEW_SCHEME:-https}
+      - PREVIEW_INTERNAL_PORT=${PREVIEW_INTERNAL_PORT:-4173}
+      - PREVIEW_ENTRYPOINTS=${PREVIEW_ENTRYPOINTS:-websecure}
+      - PREVIEW_SERVICE_SCHEME=${PREVIEW_SERVICE_SCHEME:-http}
       
       # Resource limits per project
       - DEFAULT_CPU_LIMIT=${PROJECT_CPU_LIMIT:-2.0}

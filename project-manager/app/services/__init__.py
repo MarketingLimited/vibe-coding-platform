@@ -13,6 +13,7 @@ import redis
 
 from ..config import Settings
 from ..models import ExecCommand, ProjectRequest, ProjectSecrets, ProjectStatus
+from .router_registry import RouterRegistry
 from .secret_sync import SecretSyncError, SecretSyncService
 
 logger = logging.getLogger(__name__)
@@ -31,8 +32,10 @@ class ProjectManager:
             decode_responses=True,
         )
         self.secret_sync = SecretSyncService(settings.gh_config_dir)
+        self.router_registry = RouterRegistry(settings, self.docker_client, docker.errors)
         self._ensure_directories()
         self._ensure_network()
+        self.router_registry.ensure_network()
 
     # ------------------------------------------------------------------
     # environment preparation
@@ -101,6 +104,11 @@ class ProjectManager:
             "container_id": container_id or "",
             "last_seen": datetime.now(timezone.utc).isoformat(),
         }
+        preview_url = extra.get("preview_url") if extra else None
+        if not preview_url:
+            preview_url = self.router_registry.project_url(project_id)
+        if preview_url:
+            payload["preview_url"] = preview_url
         if extra:
             payload.update(extra)
         try:
@@ -147,6 +155,12 @@ class ProjectManager:
             environment["REDIS_ENABLED"] = "true"
 
         logger.info("Creating container", extra={"project_id": request.project_id, "image": image})
+        labels = {
+            "com.vibe.project-id": request.project_id,
+            "com.vibe.project-type": request.project_type,
+        }
+        labels.update(self.router_registry.labels_for(request.project_id))
+
         container = self.docker_client.containers.create(
             image=image,
             name=self._container_name(request.project_id),
@@ -154,10 +168,7 @@ class ProjectManager:
             environment=environment,
             volumes={str(workspace): {"bind": "/workspace", "mode": "rw"}},
             network=self.settings.network_name,
-            labels={
-                "com.vibe.project-id": request.project_id,
-                "com.vibe.project-type": request.project_type,
-            },
+            labels=labels,
             mem_limit=request.limits.memory,
             cpu_period=100000,
             cpu_quota=int(request.limits.cpu * 100000),
@@ -166,14 +177,19 @@ class ProjectManager:
 
         container.start()
         container.reload()
+        self.router_registry.attach(container, request.project_id)
+        preview_url = self.router_registry.project_url(request.project_id)
         logger.info("Container started", extra={"project_id": request.project_id, "container_id": container.id})
-        self._update_state(request.project_id, container.status, container.id, {"workspace": str(workspace)})
+        extra = {"workspace": str(workspace)}
+        if preview_url:
+            extra["preview_url"] = preview_url
+        self._update_state(request.project_id, container.status, container.id, extra)
 
         return ProjectStatus(
             project_id=request.project_id,
             status=container.status,
             container_id=container.id,
-            info={"workspace": str(workspace)},
+            info={key: value for key, value in {"workspace": str(workspace), "preview_url": preview_url}.items() if value},
         )
 
     def sync_project_secrets(self, project_id: str, secrets: ProjectSecrets) -> Dict[str, str]:
@@ -207,6 +223,7 @@ class ProjectManager:
         container = self._find_container(project_id)
         if container:
             logger.info("Stopping container", extra={"project_id": project_id})
+            self.router_registry.detach(container)
             container.stop(timeout=15)
             container.remove()
         workspace = self._workspace_path(project_id)
@@ -221,11 +238,16 @@ class ProjectManager:
             self._update_state(project_id, "missing", None)
             return None
         container.reload()
+        preview_url = self.router_registry.project_url(project_id)
+        info: Dict[str, str] = {"image": container.image.tags[0] if container.image.tags else ""}
+        if preview_url:
+            info["preview_url"] = preview_url
+
         status = ProjectStatus(
             project_id=project_id,
             status=container.status,
             container_id=container.id,
-            info={"image": container.image.tags[0] if container.image.tags else ""},
+            info=info,
         )
         self._update_state(project_id, status.status, status.container_id)
         return status
