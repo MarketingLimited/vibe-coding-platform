@@ -12,6 +12,7 @@
   لصالح Prometheus.
 - **قوالب جاهزة** للغات Python وNode.js وPHP وبيئة كاملة متعددة الأدوات.
 - **سكربت تثبيت واحد** يقوم بإعداد الشبكات، بناء الصور، وتشغيل الخدمات بالاعتماد على Docker Compose.
+- **سكربت تفعيل تفاعلي** (`tools/setup/activate.sh`) يولّد ملفات البيئة ويشغّل الخدمات بخطوات إرشادية واضحة.
 - **حماية من الإساءة** بفضل محددات معدل طلبات لكل مشروع ولكل عمليات إدارية، قابلة للضبط عبر المتغيرات البيئية.
 
 ## 🏗️ نظرة على المعمارية
@@ -54,11 +55,11 @@ curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platfor
 ```bash
 git clone https://github.com/MarketingLimited/vibe-coding-platform.git
 cd vibe-coding-platform
-cp config/.env.example config/.env
-cp config/.env .env
-# عدّل القيم المناسبة داخل ملفات env ثم شغّل
-docker compose up -d --build
+bash tools/setup/activate.sh
 ```
+
+سيقوم السكربت التفاعلي بتجهيز ملفات البيئة (`.env` و`config/.env`) وتوليد المفاتيح الافتراضية،
+ثم يتيح لك تشغيل الخدمات مباشرة عبر `docker compose` بخطوة واحدة.
 
 ## 🧩 مكونات النظام
 ### 1. Central API (`api/`)
