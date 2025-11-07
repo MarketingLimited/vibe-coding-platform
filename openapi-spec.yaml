@@ -1,0 +1,445 @@
+openapi: 3.1.0
+info:
+  title: Kazaaz Vibe Coding Exec API
+  version: 2.0.0
+  description: |
+    **بيئة تطوير متكاملة مع تنفيذ أوامر آمن عبر GPT Action**
+    
+    تمكّن هذه الأداة GPT من العمل كمطور برمجي كامل داخل بيئة Docker معزولة.
+    
+    ## ✨ المميزات
+    - تنفيذ آمن للأوامر مع حدود زمنية ومخرجات
+    - قوائم بيضاء للأوامر المسموحة
+    - مراقبة استخدام الموارد
+    - عزل كامل لكل مشروع
+    - دعم متعدد اللغات (Python, Node.js, PHP, Go, Rust)
+    - قواعد بيانات متكاملة (PostgreSQL, MySQL, SQLite)
+    - Docker-in-Docker عبر socket proxy آمن
+    
+    ## 🔒 الأمان
+    - مصادقة عبر API Key
+    - معدل محدود للطلبات (100 req/min)
+    - اكتشاف الأنماط الخطرة
+    - مسارات عمل محصورة في workspace
+    - تسجيل شامل لجميع العمليات
+    
+    ## 📊 حدود التنفيذ
+    - المهلة الافتراضية: 90 ثانية
+    - أقصى حجم للمخرجات: 5MB
+    - المسار الافتراضي: /workspace
+    
+    ## 🎯 أمثلة الاستخدام
+    
+    ### استكشاف المشروع
+    ```bash
+    tree -L 2 -I ".git|node_modules"
+    rg -n "function login" -S
+    ```
+    
+    ### تطوير Python
+    ```bash
+    python3 -m venv .venv && . .venv/bin/activate
+    pip install -r requirements.txt
+    pytest -v
+    ```
+    
+    ### تطوير Node.js/React
+    ```bash
+    pnpm install && pnpm dev
+    ```
+    
+    ### تطوير PHP/Laravel
+    ```bash
+    composer install
+    php artisan migrate
+    php artisan serve --host 0.0.0.0
+    ```
+    
+    ### إدارة قواعد البيانات
+    ```bash
+    psql -h $PGHOST -U $PGUSER -d $PGDATABASE -c "SELECT version();"
+    mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD -e "SHOW DATABASES;"
+    ```
+    
+    ### Docker Compose
+    ```bash
+    docker compose up -d
+    docker compose logs -f
+    ```
+    
+    ### توليد الكاش المعرفي
+    ```bash
+    python3 /opt/tools/knowledge_cache.py
+    ```
+
+servers:
+  - url: https://{domain}/api/{project}
+    description: خادم الإنتاج عبر Traefik
+    variables:
+      domain:
+        description: الدومين الأساسي
+        default: kazaaz.com
+      project:
+        description: اسم المشروع
+        default: myapp
+
+security:
+  - apiKeyAuth: []
+
+paths:
+  /exec:
+    post:
+      operationId: execCommand
+      summary: تنفيذ أمر داخل بيئة التطوير
+      description: |
+        ينفّذ أمر shell داخل حاوية المشروع المعزولة.
+        
+        **استخدامات شائعة:**
+        - استكشاف: `tree`, `ls`, `find`, `rg`
+        - قراءة: `cat`, `head`, `tail`
+        - تشغيل خوادم: `npm dev`, `uvicorn app:app`, `php artisan serve`
+        - اختبارات: `pytest`, `npm test`, `phpunit`
+        - قواعد بيانات: `psql`, `mysql`, `sqlite3`
+        - Docker: `docker compose up -d`
+        - Git: `git status`, `git log`
+        - توليد كاش: `python3 /opt/tools/knowledge_cache.py`
+        
+        **ملاحظات أمان:**
+        - الأوامر تمر عبر قائمة بيضاء
+        - التنفيذ محدود بمهلة زمنية
+        - المخرجات محدودة بحجم معين
+        - جميع العمليات مسجلة
+      
+      tags:
+        - Execution
+      
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecRequest'
+            examples:
+              scan_project:
+                summary: مسح هيكل المشروع
+                value:
+                  cmd: "tree -L 2 -a -I '.git|node_modules|.venv'"
+                  cwd: /workspace
+              
+              search_code:
+                summary: بحث في الكود
+                value:
+                  cmd: "rg -n 'auth|login' -S --type py"
+                  cwd: /workspace
+              
+              read_file_preview:
+                summary: قراءة أول 100 سطر من ملف
+                value:
+                  cmd: "head -n 100 src/main.py"
+                  cwd: /workspace
+              
+              install_python_deps:
+                summary: تثبيت اعتماديات Python
+                value:
+                  cmd: "python3 -m pip install -r requirements.txt --break-system-packages"
+                  cwd: /workspace
+              
+              run_python_api:
+                summary: تشغيل API بايثون
+                value:
+                  cmd: "uvicorn app:app --host 0.0.0.0 --port 8080 --reload"
+                  cwd: /workspace/api
+                  timeout: 300
+              
+              install_node_deps:
+                summary: تثبيت اعتماديات Node.js
+                value:
+                  cmd: "pnpm install"
+                  cwd: /workspace/frontend
+              
+              run_react_dev:
+                summary: تشغيل خادم React
+                value:
+                  cmd: "pnpm dev"
+                  cwd: /workspace/frontend
+                  timeout: 300
+              
+              install_php_deps:
+                summary: تثبيت اعتماديات PHP
+                value:
+                  cmd: "composer install --no-dev --optimize-autoloader"
+                  cwd: /workspace
+              
+              laravel_migrate:
+                summary: تشغيل ترحيلات Laravel
+                value:
+                  cmd: "php artisan migrate --force"
+                  cwd: /workspace
+              
+              run_laravel:
+                summary: تشغيل خادم Laravel
+                value:
+                  cmd: "php artisan serve --host 0.0.0.0 --port 8080"
+                  cwd: /workspace
+                  timeout: 300
+              
+              postgres_query:
+                summary: استعلام PostgreSQL
+                value:
+                  cmd: "psql -h $PGHOST -U $PGUSER -d $PGDATABASE -c 'SELECT * FROM users LIMIT 10;'"
+                  cwd: /workspace
+              
+              mysql_query:
+                summary: استعلام MySQL
+                value:
+                  cmd: "mysql -h $MYSQL_HOST -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e 'SHOW TABLES;'"
+                  cwd: /workspace
+              
+              sqlite_init:
+                summary: تهيئة SQLite
+                value:
+                  cmd: "sqlite3 data/app.db < schema.sql && sqlite3 data/app.db '.tables'"
+                  cwd: /workspace
+              
+              docker_compose_up:
+                summary: تشغيل خدمات Docker
+                value:
+                  cmd: "docker compose up -d"
+                  cwd: /workspace
+              
+              docker_logs:
+                summary: عرض سجلات Docker
+                value:
+                  cmd: "docker compose logs --tail=50"
+                  cwd: /workspace
+              
+              run_tests_python:
+                summary: تشغيل اختبارات Python
+                value:
+                  cmd: "pytest -v --tb=short"
+                  cwd: /workspace
+              
+              run_tests_node:
+                summary: تشغيل اختبارات Node.js
+                value:
+                  cmd: "npm test"
+                  cwd: /workspace
+              
+              generate_knowledge_cache:
+                summary: توليد الكاش المعرفي
+                value:
+                  cmd: "python3 /opt/tools/knowledge_cache.py"
+                  cwd: /workspace
+              
+              git_status:
+                summary: حالة Git
+                value:
+                  cmd: "git status && git log --oneline -10"
+                  cwd: /workspace
+      
+      responses:
+        '200':
+          description: تنفيذ ناجح
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecResponse'
+              examples:
+                success:
+                  summary: تنفيذ ناجح
+                  value:
+                    returncode: 0
+                    stdout: "Python 3.11.6\nNode v20.10.0\n"
+                    stderr: ""
+                    elapsed_seconds: 0.523
+                    truncated: false
+                    timed_out: false
+                
+                error:
+                  summary: تنفيذ فاشل
+                  value:
+                    returncode: 1
+                    stdout: ""
+                    stderr: "Error: Module not found\n"
+                    elapsed_seconds: 0.102
+                    truncated: false
+                    timed_out: false
+        
+        '400':
+          description: طلب غير صالح
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        
+        '401':
+          description: فشل المصادقة
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        
+        '403':
+          description: أمر غير مسموح
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        
+        '408':
+          description: انتهاء المهلة الزمنية
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        
+        '429':
+          description: تجاوز معدل الطلبات
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        
+        '500':
+          description: خطأ داخلي
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /health:
+    get:
+      operationId: healthCheck
+      summary: فحص صحة الخدمة
+      description: يتحقق من حالة الخدمة ومعلومات النظام
+      tags:
+        - Health
+      
+      responses:
+        '200':
+          description: الخدمة تعمل بشكل صحيح
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  securitySchemes:
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        مفتاح API للمصادقة. يجب تضمينه في كل طلب.
+        احصل على المفتاح من ملف `.env` للمشروع.
+  
+  schemas:
+    ExecRequest:
+      type: object
+      required:
+        - cmd
+      properties:
+        cmd:
+          type: string
+          minLength: 1
+          maxLength: 10000
+          description: |
+            الأمر الكامل للتنفيذ.
+            يُفضّل استخدام `bash -lc '...'` لتسلسل الأوامر.
+          example: "tree -L 2"
+        
+        cwd:
+          type: string
+          maxLength: 500
+          description: |
+            مسار دليل العمل داخل الحاوية.
+            يجب أن يكون داخل `/workspace`.
+            الافتراضي: `/workspace`
+          example: "/workspace/frontend"
+        
+        timeout:
+          type: integer
+          minimum: 1
+          maximum: 300
+          description: |
+            مهلة زمنية مخصصة بالثواني.
+            الافتراضي: 90 ثانية
+          example: 60
+    
+    ExecResponse:
+      type: object
+      required:
+        - returncode
+        - stdout
+        - stderr
+        - elapsed_seconds
+      properties:
+        returncode:
+          type: integer
+          description: كود الخروج من العملية
+          example: 0
+        
+        stdout:
+          type: string
+          description: المخرجات القياسية
+          example: "Total: 42 files\n"
+        
+        stderr:
+          type: string
+          description: مخرجات الخطأ القياسية
+          example: ""
+        
+        elapsed_seconds:
+          type: number
+          format: float
+          description: مدة التنفيذ بالثواني
+          example: 1.523
+        
+        truncated:
+          type: boolean
+          description: هل تم قص المخرجات؟
+          example: false
+        
+        timed_out:
+          type: boolean
+          description: هل انتهت المهلة الزمنية؟
+          example: false
+    
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "healthy"
+        timestamp:
+          type: string
+          format: date-time
+        uptime_seconds:
+          type: number
+        workspace:
+          type: string
+        system:
+          type: object
+          properties:
+            cpu_percent:
+              type: number
+            memory_percent:
+              type: number
+            disk_percent:
+              type: number
+    
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: وصف الخطأ
+        timestamp:
+          type: string
+          format: date-time
+
+tags:
+  - name: Execution
+    description: تنفيذ الأوامر
+  - name: Health
+    description: فحص الصحة
