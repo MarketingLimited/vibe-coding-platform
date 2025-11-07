@@ -119,13 +119,13 @@ check_port() {
 
 create_directories() {
     log "إنشاء المجلدات..."
-
-    mkdir -p "$INSTALL_DIR"/{api,project-manager,cleanup,config,infra,projects,tools}
+    
+    mkdir -p "$INSTALL_DIR"/{api,project-manager,config,scripts}
     mkdir -p "$DATA_DIR"/{projects,databases,logs}
-
+    
     chmod 750 "$INSTALL_DIR"
     chmod 750 "$DATA_DIR"
-
+    
     success "تم إنشاء المجلدات"
 }
 
@@ -148,8 +148,7 @@ generate_secrets() {
     
     API_KEY=$(openssl rand -hex 32)
     DB_PASSWORD=$(openssl rand -base64 24 | tr -d "=+/" | cut -c1-20)
-    PROJECT_MANAGER_PORT=9400
-
+    
     cat > "$INSTALL_DIR/config/.env" << EOF
 # Vibe Coding Platform Configuration
 # Generated: $(date)
@@ -182,19 +181,9 @@ MAX_OUTPUT_SIZE=10485760
 # Security
 ENABLE_RATE_LIMIT=true
 RATE_LIMIT_PER_MINUTE=100
-
-# Internal services
-PROJECT_MANAGER_PORT=$PROJECT_MANAGER_PORT
-
-# Cleanup
-CLEANUP_INTERVAL=86400
-MAX_PROJECT_AGE_DAYS=30
-MAX_LOG_SIZE_MB=100
 EOF
 
     chmod 600 "$INSTALL_DIR/config/.env"
-    cp "$INSTALL_DIR/config/.env" "$INSTALL_DIR/.env"
-    chmod 600 "$INSTALL_DIR/.env"
     success "تم توليد المفاتيح"
 }
 
