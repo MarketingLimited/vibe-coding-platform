@@ -1,0 +1,359 @@
+openapi: 3.1.0
+info:
+  title: Vibe Coding Platform - Multi-Tenant API
+  version: 2.0.0
+  description: |
+    **منصة تطوير متعددة المستخدمين مع عزل تام**
+    
+    ## كيفية الاستخدام
+    
+    ### 1. إنشاء مشروع جديد (مرة واحدة)
+    ```
+    User: "أريد إنشاء مشروع Python جديد اسمه myapp"
+    
+    GPT → POST /projects/create
+    {
+      "username": "extracted_from_user",
+      "project_name": "myapp",
+      "project_type": "python"
+    }
+    
+    Response: {
+      "project_id": "user123-myapp",
+      "password": "X7k2Pm9qs4Rt",
+      "status": "ready"
+    }
+    
+    GPT saves to memory:
+      project_id: user123-myapp
+      password: X7k2Pm9qs4Rt
+    ```
+    
+    ### 2. العمل على المشروع
+    ```
+    User: "شغّل خادم FastAPI"
+    
+    GPT → POST /exec
+    {
+      "project_id": "user123-myapp",  # from memory
+      "password": "X7k2Pm9qs4Rt",     # from memory
+      "cmd": "uvicorn main:app --host 0.0.0.0 --port 8000"
+    }
+    ```
+    
+    ### 3. العودة للمشروع (جلسة جديدة)
+    ```
+    User: "أريد أكمل على مشروع myapp"
+    
+    GPT: "ما هو الباسورد للمشروع user123-myapp؟"
+    
+    User: "X7k2Pm9qs4Rt"
+    
+    GPT saves to memory and continues
+    ```
+    
+    ## الأمان
+    - كل مشروع له password فريد
+    - عزل تام بين المشاريع
+    - لا وصول خارجي مباشر
+    - جميع الطلبات مسجلة
+
+servers:
+  - url: http://95.217.62.146:9000
+    description: خادم الإنتاج (localhost only)
+  - url: http://localhost:9000
+    description: اختبار محلي
+
+security:
+  - masterKeyAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: healthCheck
+      summary: فحص صحة النظام
+      tags: [System]
+      security: []
+      responses:
+        '200':
+          description: النظام يعمل بشكل صحيح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  timestamp:
+                    type: string
+                  redis:
+                    type: string
+                  docker:
+                    type: string
+                  projects_count:
+                    type: integer
+
+  /projects/create:
+    post:
+      operationId: createProject
+      summary: إنشاء مشروع جديد
+      tags: [Projects]
+      description: |
+        ينشئ مشروع جديد للمستخدم.
+        
+        **مهم:**
+        - اسأل المستخدم عن اسم المشروع
+        - استخرج username من السياق
+        - احفظ project_id و password في الذاكرة
+        - أخبر المستخدم بحفظ الباسورد
+      
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, project_name]
+              properties:
+                username:
+                  type: string
+                  pattern: '^[a-z0-9_-]+$'
+                  minLength: 3
+                  maxLength: 50
+                  description: اسم المستخدم (حروف صغيرة وأرقام فقط)
+                project_name:
+                  type: string
+                  pattern: '^[a-z0-9_-]+$'
+                  minLength: 3
+                  maxLength: 50
+                  description: اسم المشروع
+                project_type:
+                  type: string
+                  enum: [python, nodejs, php, full]
+                  default: python
+                  description: نوع المشروع
+                database:
+                  type: string
+                  enum: [postgres, mysql, sqlite, none]
+                  description: قاعدة بيانات (اختياري)
+                redis:
+                  type: boolean
+                  default: false
+                  description: تفعيل Redis
+            examples:
+              python_simple:
+                summary: مشروع Python بسيط
+                value:
+                  username: "ahmad"
+                  project_name: "myapi"
+                  project_type: "python"
+              
+              nodejs_with_db:
+                summary: مشروع Node.js مع PostgreSQL
+                value:
+                  username: "sara"
+                  project_name: "webapp"
+                  project_type: "nodejs"
+                  database: "postgres"
+              
+              php_laravel:
+                summary: مشروع PHP Laravel
+                value:
+                  username: "khalid"
+                  project_name: "shop"
+                  project_type: "php"
+                  database: "mysql"
+      
+      responses:
+        '200':
+          description: تم إنشاء المشروع بنجاح
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  project_id:
+                    type: string
+                    description: معرف المشروع الفريد
+                  password:
+                    type: string
+                    description: باسورد المشروع (احفظه!)
+                  status:
+                    type: string
+                  container_id:
+                    type: string
+                  message:
+                    type: string
+              example:
+                project_id: "ahmad-myapi"
+                password: "X7k2Pm9qs4Rt8vLn"
+                status: "ready"
+                container_id: "abc123def456"
+                message: "Save this password! It won't be shown again."
+
+  /exec:
+    post:
+      operationId: executeCommand
+      summary: تنفيذ أمر في المشروع
+      tags: [Execution]
+      security: []
+      description: |
+        ينفذ أمر shell داخل حاوية المشروع.
+        
+        **متطلبات:**
+        - project_id (من الذاكرة)
+        - password (من الذاكرة)
+        - cmd (الأمر المطلوب)
+        
+        **إذا لم يكن project_id في الذاكرة:**
+        اسأل المستخدم: "ما هو معرف مشروعك؟"
+        
+        **إذا لم يكن password في الذاكرة:**
+        اسأل المستخدم: "ما هو باسورد المشروع؟"
+      
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id, password, cmd]
+              properties:
+                project_id:
+                  type: string
+                  description: معرف المشروع
+                password:
+                  type: string
+                  description: باسورد المشروع
+                cmd:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+                  description: الأمر المطلوب تنفيذه
+                cwd:
+                  type: string
+                  default: /workspace
+                  description: مسار العمل
+                timeout:
+                  type: integer
+                  minimum: 1
+                  maximum: 300
+                  default: 300
+                  description: المهلة الزمنية (ثواني)
+            
+            examples:
+              check_python:
+                summary: فحص نسخة Python
+                value:
+                  project_id: "ahmad-myapi"
+                  password: "X7k2Pm9qs4Rt"
+                  cmd: "python3 --version"
+              
+              install_deps:
+                summary: تثبيت اعتماديات Python
+                value:
+                  project_id: "ahmad-myapi"
+                  password: "X7k2Pm9qs4Rt"
+                  cmd: "pip install fastapi uvicorn"
+              
+              run_server:
+                summary: تشغيل خادم FastAPI
+                value:
+                  project_id: "ahmad-myapi"
+                  password: "X7k2Pm9qs4Rt"
+                  cmd: "uvicorn main:app --host 0.0.0.0 --port 8000"
+                  timeout: 300
+              
+              run_tests:
+                summary: تشغيل الاختبارات
+                value:
+                  project_id: "ahmad-myapi"
+                  password: "X7k2Pm9qs4Rt"
+                  cmd: "pytest -v"
+      
+      responses:
+        '200':
+          description: تم تنفيذ الأمر
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  returncode:
+                    type: integer
+                  stdout:
+                    type: string
+                  stderr:
+                    type: string
+                  elapsed_seconds:
+                    type: number
+
+  /projects/info:
+    post:
+      operationId: getProjectInfo
+      summary: معلومات المشروع
+      tags: [Projects]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [project_id, password]
+              properties:
+                project_id:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: معلومات المشروع
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /projects/{username}:
+    get:
+      operationId: listUserProjects
+      summary: قائمة مشاريع المستخدم
+      tags: [Projects]
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: قائمة المشاريع
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                  projects:
+                    type: array
+                    items:
+                      type: object
+
+components:
+  securitySchemes:
+    masterKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: |
+        مفتاح API الرئيسي (للعمليات الإدارية فقط)
+        مثل إنشاء المشاريع وحذفها
+
+tags:
+  - name: System
+    description: معلومات النظام
+  - name: Projects
+    description: إدارة المشاريع
+  - name: Execution
+    description: تنفيذ الأوامر
