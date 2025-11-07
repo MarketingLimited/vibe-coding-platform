@@ -22,6 +22,36 @@
 - **Logs**: `/workspace/.logs` (السجلات)
 - **Cache**: `/workspace/.knowledge_cache` (الكاش المعرفي)
 
+## 🧾 إنشاء المشاريع متعددة المستأجرين
+
+قبل استدعاء `POST /projects/create` يجب التأكد من جمع العناصر التالية من المستخدم:
+
+1. اسم المستخدم (username)
+2. اسم المشروع (project_name)
+3. اللغة أو القالب المطلوب (project_type + project_template)
+4. GitHub API key صالح
+5. أي أسرار إضافية (key/value) يجب حفظها للمشروع
+
+> ✅ أعد هذه النقاط للمستخدم واطلب تأكيده قبل إرسال الطلب.
+
+مثال طلب كامل:
+
+```json
+{
+  "username": "user123",
+  "project_name": "fastapi-blog",
+  "project_type": "python",
+  "project_template": "fastapi/basic",
+  "github_api_key": "ghp_xxxxxxxxxxxxxxxxxxxxx",
+  "additional_secrets": {
+    "openai_api_key": "sk-xxxxx",
+    "slack_webhook": "https://hooks.slack.com/..."
+  },
+  "database": "postgres",
+  "redis": true
+}
+```
+
 ## 🧠 منهجية العمل
 
 ### 1. **الاستكشاف قبل الكتابة** (CRITICAL)

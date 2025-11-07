@@ -8,6 +8,7 @@ from ..dependencies import (
     get_project_repository,
     get_rate_limiter,
     get_redis_client,
+    get_secret_storage,
 )
 from ..models.projects import ProjectAuth, ProjectCreate
 from ..services.auth import generate_project_id, verify_master_key
@@ -21,8 +22,9 @@ def get_project_service(
     redis_client=Depends(get_redis_client),
     settings: Settings = Depends(get_settings),
     repository=Depends(get_project_repository),
+    secret_storage=Depends(get_secret_storage),
 ) -> ProjectService:
-    return ProjectService(redis_client, settings, repository)
+    return ProjectService(redis_client, settings, repository, secret_storage)
 
 
 @router.post("/create", dependencies=[Depends(verify_master_key)])
@@ -48,20 +50,22 @@ async def create_project(
             detail=f"Maximum {project_service.settings.max_projects_per_user} projects per user",
         )
 
-    manager_response = await project_manager.create_project(
-        {
-            "project_id": project_id,
-            "project_type": payload.project_type,
-            "database": payload.database,
-            "redis": payload.redis,
-            "username": payload.username,
-            "limits": {
-                "cpu": project_service.settings.project_cpu_limit,
-                "memory": project_service.settings.project_memory_limit,
-                "storage": project_service.settings.project_storage_limit,
-            },
-        }
-    )
+    manager_payload = {
+        "project_id": project_id,
+        "project_type": payload.project_type,
+        "database": payload.database,
+        "redis": payload.redis,
+        "username": payload.username,
+        "limits": {
+            "cpu": project_service.settings.project_cpu_limit,
+            "memory": project_service.settings.project_memory_limit,
+            "storage": project_service.settings.project_storage_limit,
+        },
+    }
+    if payload.project_template:
+        manager_payload["template"] = payload.project_template
+
+    manager_response = await project_manager.create_project(manager_payload)
 
     container_id = manager_response.get("container_id") or ""
     status = manager_response.get("status", "active")

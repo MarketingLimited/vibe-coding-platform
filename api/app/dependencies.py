@@ -15,10 +15,12 @@ from .config import Settings, get_settings
 from .services.project_manager import ProjectManagerClient
 from .services.rate_limiter import RateLimiter
 from .services.repository import ProjectRepository
+from .services.secrets import SecretStorage
 
 logger = logging.getLogger(__name__)
 
 _project_repository: ProjectRepository | None = None
+_secret_storage: SecretStorage | None = None
 
 
 def get_project_repository(settings: Settings = Depends(get_settings)) -> ProjectRepository:
@@ -74,3 +76,21 @@ def get_rate_limiter(
         window_seconds=settings.rate_limit_window_seconds,
         enabled=settings.enable_rate_limit,
     )
+
+
+def get_secret_storage(settings: Settings = Depends(get_settings)) -> SecretStorage:
+    """Return the encrypted secrets storage singleton."""
+
+    global _secret_storage
+    if _secret_storage is None:
+        if not settings.github_secrets_key:
+            raise RuntimeError("GITHUB_SECRETS_KEY is not configured")
+
+        logger.info(
+            "Initialising encrypted secrets storage",
+            extra={"path": str(settings.github_secrets_path)},
+        )
+        _secret_storage = SecretStorage(
+            settings.github_secrets_path, settings.github_secrets_key
+        )
+    return _secret_storage

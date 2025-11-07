@@ -9,6 +9,7 @@ from ..config import Settings
 from ..models.projects import ProjectCreate, ProjectInfo
 from .auth import generate_password, generate_project_id, hash_password
 from .repository import ProjectRepository
+from .secrets import SecretStorage
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +22,12 @@ class ProjectService:
         redis_client: redis.Redis,
         settings: Settings,
         repository: ProjectRepository,
+        secret_storage: Optional[SecretStorage] = None,
     ) -> None:
         self.redis = redis_client
         self.settings = settings
         self.repository = repository
+        self.secret_storage = secret_storage
 
     # ------------------------------------------------------------------
     # Redis helpers
@@ -133,6 +136,8 @@ class ProjectService:
         self.repository.delete(project_id)
         self.redis.delete(self._project_key(project_id))
         self.redis.srem(self._user_projects_key(project.username), project_id)
+        if self.secret_storage:
+            self.secret_storage.delete_project_secrets(project_id)
         return project
 
     def create_project_record(
@@ -166,6 +171,23 @@ class ProjectService:
         )
         self.repository.upsert(record)
         self._rehydrate_cache(record)
+
+        if self.secret_storage:
+            try:
+                self.secret_storage.store_project_secrets(
+                    project_id,
+                    payload.github_api_key,
+                    payload.additional_secrets,
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to persist GitHub credentials",
+                    extra={"project_id": project_id},
+                )
+                self.repository.delete(project_id)
+                self.redis.delete(self._project_key(project_id))
+                self.redis.srem(self._user_projects_key(payload.username), project_id)
+                raise
 
         return {
             "project_id": project_id,

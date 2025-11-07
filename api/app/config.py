@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     db_path: Path = Field(Path("/data/projects.db"), env="DB_PATH")
     db_password: Optional[str] = Field(None, env="DB_PASSWORD")
 
+    # Secret storage
+    github_secrets_path: Path = Field(Path("/data/github-secrets.bin"), env="GITHUB_SECRETS_PATH")
+    github_secrets_key: Optional[str] = Field(None, env="GITHUB_SECRETS_KEY")
+
     redis_host: str = Field("redis", env="REDIS_HOST")
     redis_port: int = Field(6379, env="REDIS_PORT")
     redis_db: int = Field(0, env="REDIS_DB")

@@ -15,7 +15,13 @@ info:
     {
       "username": "extracted_from_user",
       "project_name": "myapp",
-      "project_type": "python"
+      "project_type": "python",
+      "project_template": "fastapi/basic",
+      "github_api_key": "ghp_xxxxxxxxxxxxxxxxxxxxx",
+      "additional_secrets": {
+        "openai_api_key": "sk-xxxxx",
+        "slack_webhook": "https://hooks.slack.com/..."
+      }
     }
     
     Response: {
@@ -147,7 +153,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [username, project_name]
+              required: [username, project_name, project_type, github_api_key]
               properties:
                 username:
                   type: string
@@ -164,8 +170,11 @@ paths:
                 project_type:
                   type: string
                   enum: [python, nodejs, php, full]
-                  default: python
                   description: نوع المشروع
+                project_template:
+                  type: string
+                  description: اسم القالب أو البوكلت الجاهز (اختياري)
+                  maxLength: 100
                 database:
                   type: string
                   enum: [postgres, mysql, sqlite, none]
@@ -174,6 +183,15 @@ paths:
                   type: boolean
                   default: false
                   description: تفعيل Redis
+                github_api_key:
+                  type: string
+                  minLength: 20
+                  description: مفتاح GitHub الشخصي (يحفظ مشفرًا)
+                additional_secrets:
+                  type: object
+                  description: أسرار إضافية مرتبطة بالمشروع
+                  additionalProperties:
+                    type: string
             examples:
               python_simple:
                 summary: مشروع Python بسيط
@@ -181,7 +199,11 @@ paths:
                   username: "ahmad"
                   project_name: "myapi"
                   project_type: "python"
-              
+                  project_template: "fastapi/basic"
+                  github_api_key: "ghp_xxxxxxxxxxxxxxxxxxxxx"
+                  additional_secrets:
+                    openai_api_key: "sk-xxxxx"
+
               nodejs_with_db:
                 summary: مشروع Node.js مع PostgreSQL
                 value:
@@ -189,7 +211,9 @@ paths:
                   project_name: "webapp"
                   project_type: "nodejs"
                   database: "postgres"
-              
+                  github_api_key: "ghp_yyyyyyyyyyyyyyyyyyyy"
+                  additional_secrets: {}
+
               php_laravel:
                 summary: مشروع PHP Laravel
                 value:
@@ -197,6 +221,10 @@ paths:
                   project_name: "shop"
                   project_type: "php"
                   database: "mysql"
+                  project_template: "laravel/ecommerce"
+                  github_api_key: "ghp_zzzzzzzzzzzzzzzzzzzz"
+                  additional_secrets:
+                    stripe_secret: "sk-live-123"
       
       responses:
         '200':
