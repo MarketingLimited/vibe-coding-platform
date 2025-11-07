@@ -1,0 +1,135 @@
+{
+  "id": null,
+  "uid": "activation-domain-overview",
+  "title": "Activation & Domain Overview",
+  "tags": ["activation", "domains"],
+  "timezone": "",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Activation Failures (1h)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(increase(activation_attempts_total{status=\"failure\"}[1h]))",
+          "legendFormat": "Failures",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal"
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0}
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "p90 Activation Setup Time",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.9, sum(rate(activation_setup_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p90",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "horizontal"
+      },
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0}
+    },
+    {
+      "id": 3,
+      "type": "timeSeries",
+      "title": "Activation Attempts by Status",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(activation_attempts_total[5m])) by (status)",
+          "legendFormat": "{{status}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "req/s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 16, "x": 0, "y": 8}
+    },
+    {
+      "id": 4,
+      "type": "timeSeries",
+      "title": "Subdomain Request Rate",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "sum(rate(traefik_entrypoint_requests_total{entrypoint=~\"websecure|web\"}[5m]))",
+          "legendFormat": "Entrypoint",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "req/s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 16, "x": 0, "y": 16}
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Top Subdomain Routers (5m)",
+      "datasource": "Prometheus",
+      "targets": [
+        {
+          "expr": "topk(5, sum(rate(traefik_router_requests_total[5m])) by (router))",
+          "legendFormat": "{{router}}",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {},
+            "indexByName": {
+              "Value": 1,
+              "router": 0
+            }
+          }
+        }
+      ],
+      "gridPos": {"h": 8, "w": 16, "x": 0, "y": 24}
+    }
+  ],
+  "templating": {"list": []},
+  "annotations": {"list": []},
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  }
+}

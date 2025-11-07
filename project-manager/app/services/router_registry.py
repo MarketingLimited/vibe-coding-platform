@@ -7,6 +7,7 @@ import re
 from typing import Dict, Optional
 
 from ..config import Settings
+from ..loggers.domain_events import DomainEventsLogger
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class RouterRegistry:
         self.settings = settings
         self.docker_client = docker_client
         self.docker_errors = docker_errors
+        self.domain_events = DomainEventsLogger(settings)
 
     # ------------------------------------------------------------------
     # helpers
@@ -105,11 +107,18 @@ class RouterRegistry:
 
         try:
             network.connect(container, aliases=list(dict.fromkeys(aliases)))
+            self.domain_events.record_success(project_id, hostname, getattr(network, "name", None))
         except self.docker_errors.APIError as exc:  # type: ignore[attr-defined]
             if "already exists" in str(exc).lower():
                 logger.debug("Container already attached to proxy network", extra={"project_id": project_id})
+                self.domain_events.record_success(project_id, hostname, getattr(network, "name", None))
                 return
-            logger.warning("Failed to attach container to proxy network", extra={"project_id": project_id, "error": str(exc)})
+            error_message = str(exc)
+            logger.warning(
+                "Failed to attach container to proxy network",
+                extra={"project_id": project_id, "error": error_message},
+            )
+            self.domain_events.record_failure(project_id, hostname, error_message)
 
     def detach(self, container) -> None:
         if not self._enabled():

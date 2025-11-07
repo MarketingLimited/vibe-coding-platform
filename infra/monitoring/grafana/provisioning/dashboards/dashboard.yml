@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: vibe-platform
+    orgId: 1
+    folder: Vibe Platform
+    type: file
+    editable: false
+    disableDeletion: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/dashboards
