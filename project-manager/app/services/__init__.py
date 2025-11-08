@@ -13,6 +13,10 @@ from typing import Dict, Optional
 
 import docker
 import redis
+try:  # pragma: no cover - fallback when dependency not installed in tests
+    import requests_unixsocket
+except ModuleNotFoundError:  # pragma: no cover - fallback when dependency not installed in tests
+    requests_unixsocket = None  # type: ignore[assignment]
 
 from ..config import Settings
 from ..models import (
@@ -30,11 +34,31 @@ from .secret_sync import SecretSyncError, SecretSyncService
 logger = logging.getLogger(__name__)
 
 
+_docker_requests_monkeypatched = False
+
+
+def _ensure_docker_requests_adapter() -> None:
+    """Register support for http+docker URLs used by the Docker client."""
+
+    global _docker_requests_monkeypatched
+    if _docker_requests_monkeypatched:
+        return
+
+    if requests_unixsocket is None:  # pragma: no cover - only reached in partial installs
+        logger.debug("requests-unixsocket is not installed; Docker socket support disabled")
+        _docker_requests_monkeypatched = True
+        return
+
+    requests_unixsocket.monkeypatch()
+    _docker_requests_monkeypatched = True
+
+
 class ProjectManager:
     """Manage per-project Docker containers and metadata synchronisation."""
 
     def __init__(self, settings: Settings):
         self.settings = settings
+        _ensure_docker_requests_adapter()
         self.docker_client = docker.from_env()
         self.redis = redis.Redis(
             host=settings.redis_host,

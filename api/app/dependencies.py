@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-import logging
-from pathlib import Path
 from typing import AsyncGenerator, Generator
 
 import docker
 import httpx
 import redis
+try:  # pragma: no cover - fallback for optional dependency in tests
+    import requests_unixsocket
+except ModuleNotFoundError:  # pragma: no cover - fallback for optional dependency in tests
+    requests_unixsocket = None  # type: ignore[assignment]
 from fastapi import Depends
 
 from .config import Settings, get_settings
@@ -23,6 +25,23 @@ logger = logging.getLogger(__name__)
 
 _project_repository: ProjectRepository | None = None
 _secret_storage: SecretStorage | None = None
+_docker_requests_monkeypatched = False
+
+
+def _ensure_docker_requests_adapter() -> None:
+    """Register the http+docker transport so docker.from_env can connect."""
+
+    global _docker_requests_monkeypatched
+    if _docker_requests_monkeypatched:
+        return
+
+    if requests_unixsocket is None:  # pragma: no cover - only during partial installations
+        logger.debug("requests-unixsocket is not installed; Docker socket support disabled")
+        _docker_requests_monkeypatched = True
+        return
+
+    requests_unixsocket.monkeypatch()
+    _docker_requests_monkeypatched = True
 
 
 def get_project_repository(settings: Settings = Depends(get_settings)) -> ProjectRepository:
@@ -46,6 +65,7 @@ def get_redis_client(settings: Settings = Depends(get_settings)) -> redis.Redis:
 
 
 def get_docker_client() -> Generator[docker.DockerClient, None, None]:
+    _ensure_docker_requests_adapter()
     client = docker.from_env()
     try:
         yield client
