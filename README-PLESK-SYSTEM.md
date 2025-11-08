@@ -211,10 +211,12 @@ vibe-update
 curl http://localhost:9000/health
 ```
 
+> **ملاحظة:** يتم ضبط هذه الأوامر تلقائياً على مسار التثبيت المحدد عبر `INSTALL_DIR` (الافتراضي `/opt/vibe-coding`).
+
 ### المجلدات الهامة:
 
 ```
-/opt/vibe-coding/          # ملفات التثبيت
+/opt/vibe-coding/          # ملفات التثبيت (قيمة افتراضية يمكن تغييرها عبر `INSTALL_DIR`)
 ├── api/                   # كود API
 ├── project-manager/       # إدارة الحاويات
 ├── config/
