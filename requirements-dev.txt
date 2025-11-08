@@ -1,0 +1,5 @@
+-r api/requirements.txt
+-r project_manager/requirements.txt
+
+pytest
+pytest-anyio

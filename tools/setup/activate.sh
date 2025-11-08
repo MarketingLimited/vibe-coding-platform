@@ -128,6 +128,25 @@ cp "$ENV_FILE" "$CONFIG_ENV_FILE"
 
 echo "[setup] Wrote $ENV_FILE and $CONFIG_ENV_FILE"
 
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+PIP_CMD=()
+if command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  PIP_CMD=("$PYTHON_BIN" -m pip)
+elif command -v python >/dev/null 2>&1; then
+  PIP_CMD=(python -m pip)
+elif command -v pip >/dev/null 2>&1; then
+  PIP_CMD=(pip)
+fi
+
+if [[ ${#PIP_CMD[@]} -gt 0 ]]; then
+  echo "[setup] Installing Python development dependencies..."
+  if ! "${PIP_CMD[@]}" install -r "$ROOT_DIR/requirements-dev.txt"; then
+    echo "[setup] Failed to install Python dependencies. Run 'pip install -r requirements-dev.txt' manually." >&2
+  fi
+else
+  echo "[setup] Python or pip not found; skipping Python dependency installation." >&2
+fi
+
 if command -v docker >/dev/null 2>&1; then
   ensure_network() {
     local network_name="vibe-network"

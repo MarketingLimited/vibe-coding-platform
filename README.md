@@ -67,12 +67,20 @@ curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platfor
 ```bash
 git clone https://github.com/MarketingLimited/vibe-coding-platform.git
 cd vibe-coding-platform
+python3 -m venv .venv
+source .venv/bin/activate
 bash tools/setup/activate.sh
 ```
 
 سيقوم السكربت التفاعلي بتجهيز ملفات البيئة (`.env` و`config/.env`) وتوليد المفاتيح الافتراضية
 بما في ذلك مفتاح تشفير أسرار GitHub، ثم ينشئ شبكة `vibe-network` إن لم تكن موجودة ويستدعي
-`tools/build-project-images.sh` لضمان توفر صور المشاريع قبل تشغيل الخدمات مباشرة عبر `docker compose` بخطوة واحدة.
+`tools/build-project-images.sh` لضمان توفر صور المشاريع قبل تشغيل الخدمات مباشرة عبر `docker compose` بخطوة واحدة. بعد تفعيل
+البيئة الافتراضية يقوم السكربت كذلك بتثبيت تبعيات التطوير تلقائياً عبر الملف `requirements-dev.txt`. إذا احتجت لتحديث الحزم
+لاحقاً (بعد سحب تغييرات جديدة مثلاً) فأعد تفعيل البيئة (`source .venv/bin/activate`) ثم نفّذ يدويًا:
+
+```bash
+pip install -r requirements-dev.txt
+```
 
 ## 🧩 مكونات النظام
 ### 1. Central API (`api/`)
@@ -171,10 +179,14 @@ bash tools/setup/activate.sh
    ```
 4. إنشاء مشروع تجريبي عبر `POST /projects/create` ثم تنفيذ أمر عبر `/exec`.
 5. التحقق من أن خدمة Project Manager تعيد الحالة عبر `curl http://localhost:9400/health` من داخل المضيف.
-6. تشغيل `pytest` من جذر المستودع للتحقق من محددات المعدل، مستودع المشاريع، ومنطق خدمة التنظيف.
+6. قبل تشغيل الاختبارات فعّل البيئة الافتراضية (`source .venv/bin/activate`) ثم شغّل `pip install -r requirements-dev.txt` لضمان
+   توفّر تبعيات التطوير (يحدث ذلك تلقائياً عند تشغيل سكربت التفعيل). بعد ذلك نفّذ `pytest` من جذر المستودع للتحقق من محددات
+   المعدل، مستودع المشاريع، ومنطق خدمة التنظيف.
 
 ## 🤝 المساهمة
 - افتح تذكرة جديدة لأي تحسين أو مشكلة.
 - تأكد من تشغيل `docker compose build` بعد أي تعديل على الصور أو متطلبات الخدمات.
+- فعّل البيئة الافتراضية (`source .venv/bin/activate`) وشغّل `pip install -r requirements-dev.txt` قبل العمل على الاختبارات أو
+  تحديث تبعيات Python.
 - أضف اختبارات أو لقطات من السجلات عند المساهمة في منطق إدارة المشاريع أو التنظيف.
 
