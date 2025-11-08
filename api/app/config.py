@@ -2,64 +2,66 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseSettings, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
     """Application configuration loaded from environment variables."""
 
-    api_host: str = Field("0.0.0.0", env="API_HOST")
-    api_port: int = Field(9000, env="API_PORT")
-    api_key: str = Field("", env="API_KEY")
-    master_api_key: Optional[str] = Field(None, env="MASTER_API_KEY")
+    api_host: str = Field("0.0.0.0")
+    api_port: int = Field(9000)
+    api_key: str = Field("")
+    master_api_key: Optional[str] = Field(None)
 
-    domain: str = Field("localhost", env="DOMAIN")
+    domain: str = Field("localhost")
 
     # Data stores
-    db_type: str = Field("sqlite", env="DB_TYPE")
-    db_path: Path = Field(Path("/data/projects.db"), env="DB_PATH")
-    db_password: Optional[str] = Field(None, env="DB_PASSWORD")
+    db_type: str = Field("sqlite")
+    db_path: Path = Field(Path("/data/projects.db"))
+    db_password: Optional[str] = Field(None)
 
     # Secret storage
-    github_secrets_path: Path = Field(Path("/data/github-secrets.bin"), env="GITHUB_SECRETS_PATH")
-    github_secrets_key: Optional[str] = Field(None, env="GITHUB_SECRETS_KEY")
+    github_secrets_path: Path = Field(Path("/data/github-secrets.bin"))
+    github_secrets_key: Optional[str] = Field(None)
 
-    redis_host: str = Field("redis", env="REDIS_HOST")
-    redis_port: int = Field(6379, env="REDIS_PORT")
-    redis_db: int = Field(0, env="REDIS_DB")
+    redis_host: str = Field("redis")
+    redis_port: int = Field(6379)
+    redis_db: int = Field(0)
 
     # Limits and quotas
-    max_projects_per_user: int = Field(10, env="MAX_PROJECTS_PER_USER")
-    project_cpu_limit: float = Field(2.0, env="PROJECT_CPU_LIMIT")
-    project_memory_limit: str = Field("4G", env="PROJECT_MEMORY_LIMIT")
-    project_storage_limit: str = Field("10G", env="PROJECT_STORAGE_LIMIT")
+    max_projects_per_user: int = Field(10)
+    project_cpu_limit: float = Field(2.0)
+    project_memory_limit: str = Field("4G")
+    project_storage_limit: str = Field("10G")
 
-    exec_timeout: int = Field(300, env="EXEC_TIMEOUT")
-    max_output_size: int = Field(10 * 1024 * 1024, env="MAX_OUTPUT_SIZE")
+    exec_timeout: int = Field(300)
+    max_output_size: int = Field(10 * 1024 * 1024)
 
-    enable_rate_limit: bool = Field(True, env="ENABLE_RATE_LIMIT")
-    rate_limit_per_minute: int = Field(100, env="RATE_LIMIT_PER_MINUTE")
-    rate_limit_window_seconds: int = Field(60, env="RATE_LIMIT_WINDOW_SECONDS")
-    exec_rate_limit_per_minute: int = Field(60, env="EXEC_RATE_LIMIT_PER_MINUTE")
-    project_create_rate_limit: int = Field(5, env="PROJECT_CREATE_RATE_LIMIT")
-    project_info_rate_limit: int = Field(30, env="PROJECT_INFO_RATE_LIMIT")
-    password_rotate_rate_limit: int = Field(4, env="PASSWORD_ROTATE_RATE_LIMIT")
-    project_delete_rate_limit: int = Field(4, env="PROJECT_DELETE_RATE_LIMIT")
+    enable_rate_limit: bool = Field(True)
+    rate_limit_per_minute: int = Field(100)
+    rate_limit_window_seconds: int = Field(60)
+    exec_rate_limit_per_minute: int = Field(60)
+    project_create_rate_limit: int = Field(5)
+    project_info_rate_limit: int = Field(30)
+    password_rotate_rate_limit: int = Field(4)
+    project_delete_rate_limit: int = Field(4)
 
-    projects_dir: Path = Field(Path("/projects"), env="PROJECTS_DIR")
-    logs_dir: Path = Field(Path("/logs"), env="LOGS_DIR")
+    projects_dir: Path = Field(Path("/projects"))
+    logs_dir: Path = Field(Path("/logs"))
 
     # Internal service endpoints
-    project_manager_host: str = Field("project-manager", env="PROJECT_MANAGER_HOST")
-    project_manager_port: int = Field(9400, env="PROJECT_MANAGER_PORT")
-    project_manager_scheme: str = Field("http", env="PROJECT_MANAGER_SCHEME")
+    project_manager_host: str = Field("project-manager")
+    project_manager_port: int = Field(9400)
+    project_manager_scheme: str = Field("http")
 
-    cleanup_interval: int = Field(86400, env="CLEANUP_INTERVAL")
+    cleanup_interval: int = Field(86400)
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "case_sensitive": False,
+    }
 
     @property
     def project_manager_base_url(self) -> str:
