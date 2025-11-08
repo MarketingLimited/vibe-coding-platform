@@ -173,8 +173,11 @@ Value: [من /opt/vibe-coding/config/.env]
 
 #### 3. Instructions
 ```
-# نسخ محتوى
+# نسخ المحتوى الأساسي
 GPT-INSTRUCTIONS-MULTITENANT.md
+
+# مرجع إضافي (احتفظ به للاطلاع)
+knowledge/multitenant-reference.md
 ```
 
 #### 4. اختبار
@@ -412,7 +415,8 @@ GPT:
 - `docker-compose.yml` - التكوين
 - `api-main.py` - كود API
 - `openapi-spec-multitenant.yaml` - مواصفات API
-- `GPT-INSTRUCTIONS-MULTITENANT.md` - تعليمات GPT
+- `GPT-INSTRUCTIONS-MULTITENANT.md` - تعليمات GPT الأساسية
+- `knowledge/multitenant-reference.md` - تدفقات متعددة المستأجرين مفصلة
 
 ### GitHub:
 https://github.com/MarketingLimited/vibe-coding-platform
