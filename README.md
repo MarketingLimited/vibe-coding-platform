@@ -28,25 +28,37 @@ workspace/
 ├── infra/               # ملفات البنية التحتية الإضافية
 ├── tools/               # سكربتات وأدوات مساعدة
 ├── docker-compose.yml   # تعريف الخدمات
-└── install-plesk.sh     # سكربت التثبيت بنقرة واحدة
+├── install.sh           # سكربت التثبيت العام لأنظمة Linux
+└── install-plesk.sh     # سكربت تثبيت متوافق مع خوادم Plesk
 ```
 الخدمات تتصل ببعضها البعض عبر شبكة `vibe-network` وتخزن بياناتها المشتركة ضمن مجلدات `/projects` و`/logs` على المضيف.
 
 ## 🚀 التثبيت السريع
-### المتطلبات
-- نظام Ubuntu 24.04 مع وصول root.
-- Docker 24+ و Docker Compose v2.
-- منفذ داخلي متاح للـ API (افتراضي 9000).
-- مساحة قرص لا تقل عن 20GB.
+### المتطلبات المشتركة
+- نظام Linux بواجهة سطر أوامر مع صلاحيات `root` (Debian/Ubuntu أو Rocky/AlmaLinux مدعومة رسمياً).
+- اتصال إنترنت للوصول إلى GitHub وملفات Docker.
+- Docker 24+ و Docker Compose v2 (يتم تثبيتهما تلقائياً إذا لم يكونا متوفرين).
+- منفذ داخلي متاح للـ API (افتراضي 9000) ومساحة قرص لا تقل عن 20GB.
 
-### التثبيت الآلي
+### المسار العام (موصى به لمعظم الخوادم)
+```bash
+curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platform/main/install.sh | sudo bash
+```
+- يدعم Debian/Ubuntu و Rocky/AlmaLinux تلقائياً، ويتعرف على مدير الحزم المناسب.
+- يمكن تجربة الخطوات بدون تنفيذ تغييرات عبر `--dry-run` للتحقق من التوزيعة والمتطلبات.
+- خيارات إضافية: `--skip-firewall` لتعطيل ضبط UFW، و `--skip-systemd` في حال عدم توفر systemd.
+
+### مسار Plesk الاختياري
 ```bash
 curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platform/main/install-plesk.sh | sudo bash
 ```
-يقوم السكربت بالمهام التالية:
-1. التحقق من النظام وإعداد Docker.
+- يحافظ على نفس خطوات التثبيت مع فحص اختياري لوجود Plesk.
+- يمكن استخدام `--dry-run` للتأكد من توافق الخادم قبل التنفيذ.
+
+كلا المسارين يقومان بالمهام التالية:
+1. التحقق من النظام وإعداد Docker (عند الحاجة).
 2. إنشاء مجلد التثبيت `/opt/vibe-coding` ومجلد البيانات `/var/lib/vibe-coding`.
-3. تنزيل المستودع، توليد مفاتيح الوصول، وإنشاء ملف `.env` (يتضمن الآن مفتاح تشفير GitHub سري يتم حفظه في `/data/github-secrets.bin`).
+3. تنزيل المستودع، توليد مفاتيح الوصول، وإنشاء ملف `.env` (يتضمن مفتاح تشفير GitHub سري يتم حفظه في `/data/github-secrets.bin`).
 4. بناء صور الخدمات (API، Project Manager، Cleanup، Redis) ثم تشغيل سكربت `tools/build-project-images.sh` لبناء صور المشاريع الأساسية (`vibe-project-<type>`).
 5. تشغيل الخدمات عبر `docker compose up -d`.
 6. إنشاء أوامر مساعدة مثل `vibe-status`, `vibe-logs`, `vibe-update`.

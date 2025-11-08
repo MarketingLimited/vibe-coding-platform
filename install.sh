@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
-# Vibe Coding Platform - Plesk One-Command Installer
+# Vibe Coding Platform - General Linux Installer
 # =============================================================================
-# Usage: curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platform/main/install-plesk.sh | sudo bash
+# Usage: curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platform/main/install.sh | sudo bash
 # =============================================================================
 
 set -euo pipefail
@@ -30,6 +30,7 @@ load_common_library
 
 DRY_RUN=false
 SKIP_FIREWALL=false
+SKIP_SYSTEMD=false
 
 parse_args() {
     while [[ $# -gt 0 ]]; do
@@ -40,6 +41,10 @@ parse_args() {
                 ;;
             --skip-firewall)
                 SKIP_FIREWALL=true
+                shift
+                ;;
+            --skip-systemd)
+                SKIP_SYSTEMD=true
                 shift
                 ;;
             *)
@@ -57,15 +62,14 @@ banner() {
     cat << "EOF_BANNER"
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║     ██╗   ██╗██╗██████╗ ███████╗                            ║
-║     ██║   ██║██║██╔══██╗██╔════╝                            ║
-║     ██║   ██║██║██████╔╝█████╗                              ║
-║     ╚██╗ ██╔╝██║██╔══██╗██╔══╝                              ║
-║      ╚████╔╝ ██║██████╔╝███████╗                            ║
-║       ╚═══╝  ╚═╝╚═════╝ ╚══════╝                            ║
+║      ██╗   ██╗██╗██████╗ ███████╗                            ║
+║      ██║   ██║██║██╔══██╗██╔════╝                            ║
+║      ██║   ██║██║██████╔╝█████╗                              ║
+║      ╚██╗ ██╔╝██║██╔══██╗██╔══╝                              ║
+║       ╚████╔╝ ██║██████╔╝███████╗                            ║
+║        ╚═══╝  ╚═╝╚═════╝ ╚══════╝                            ║
 ║                                                              ║
-║          Vibe Coding Platform - Plesk Edition                ║
-║               One-Command Installation                       ║
+║        Vibe Coding Platform - General Linux Installer        ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF_BANNER
@@ -80,16 +84,15 @@ main() {
     init_installation_context
     init_logging
 
-    log "بدء تثبيت نسخة Plesk..."
+    log "بدء التثبيت العام لمنصة Vibe Coding..."
 
     check_root
     detect_distro
-    require_supported_family "debian"
+    require_supported_family "debian" "rhel"
     ensure_prerequisites
-    check_plesk
 
     if [ "$DRY_RUN" = true ]; then
-        success "تم التحقق من المتطلبات الأساسية للتثبيت (وضع التجربة)"
+        success "وضع التجربة: التوزيعة مدعومة ومدير الحزم تم التعرف عليه ($PACKAGE_MANAGER)"
         return 0
     fi
 
@@ -109,7 +112,12 @@ main() {
     build_images
     start_services
     create_management_scripts
-    setup_systemd
+
+    if [ "$SKIP_SYSTEMD" = false ]; then
+        setup_systemd
+    else
+        warn "تخطي إنشاء خدمة systemd بناءً على خيار --skip-systemd"
+    fi
 
     show_summary
     success "التثبيت اكتمل بنجاح!"
