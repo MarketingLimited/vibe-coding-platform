@@ -157,11 +157,11 @@ GPT: "✅ تم التحقق! مرحباً بعودتك"
 
 #### 1. Actions
 ```yaml
-# استيراد الملف
-openapi-spec-multitenant.yaml
+# توليد المواصفة المحدثة
+tools/openapi/render-multitenant-spec.sh
 
-# أو الرابط المباشر
-http://95.217.62.146:9000/openapi.json
+# استيراد الملف الناتج
+openapi-spec-multitenant.rendered.yaml
 ```
 
 #### 2. Authentication
@@ -181,6 +181,7 @@ GPT-INSTRUCTIONS-MULTITENANT.md
 ```
 "تحقق من صحة النظام"
 "أنشئ مشروع Python جديد"
+curl -fsSL "$API_PUBLIC_BASE_URL/health"
 ```
 
 ---
@@ -209,6 +210,7 @@ vibe-update
 
 # التحقق من الصحة
 curl http://localhost:9000/health
+curl -fsSL "$API_PUBLIC_BASE_URL/health"
 ```
 
 > **ملاحظة:** يتم ضبط هذه الأوامر تلقائياً على مسار التثبيت المحدد عبر `INSTALL_DIR` (الافتراضي `/opt/vibe-coding`).

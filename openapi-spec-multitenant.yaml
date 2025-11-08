@@ -65,10 +65,13 @@ info:
     - جميع الطلبات مسجلة
 
 servers:
-  - url: http://95.217.62.146:9000
-    description: خادم الإنتاج (localhost only)
-  - url: http://localhost:9000
-    description: اختبار محلي
+  - url: "{public_base_url}"
+    description: خادم الإنتاج (يجب ضبطه على `API_PUBLIC_BASE_URL`)
+    variables:
+      public_base_url:
+        default: https://api.example.com
+        description: |
+          اضبط المتغير إلى القيمة الكاملة لمتغير البيئة `API_PUBLIC_BASE_URL` (بما في ذلك https).
 
 security:
   - masterKeyAuth: []
