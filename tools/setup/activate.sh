@@ -177,7 +177,7 @@ if command -v docker >/dev/null 2>&1; then
       echo "[setup] Launching docker compose stack..."
       ensure_network
       build_project_images
-      docker compose up -d
+      docker compose up -d api project-manager cleanup redis
       docker compose ps
       ;;
     *)
