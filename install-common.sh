@@ -18,6 +18,23 @@ init_installation_context() {
     LOG_FILE="${LOG_FILE:-/var/log/vibe-coding-install.log}"
     API_PORT="${API_PORT:-${VIBE_API_PORT:-9000}}"
     DOMAIN="${DOMAIN:-${VIBE_DOMAIN:-localhost}}"
+    API_PUBLISH_MODE="${API_PUBLISH_MODE:-${VIBE_API_PUBLISH_MODE:-internal}}"
+
+    if [ -n "${API_PUBLISH_BIND+x}" ]; then
+        API_PUBLISH_BIND="${API_PUBLISH_BIND}"
+    elif [ -n "${VIBE_API_PUBLISH_BIND+x}" ]; then
+        API_PUBLISH_BIND="${VIBE_API_PUBLISH_BIND}"
+    else
+        API_PUBLISH_BIND=""
+    fi
+
+    if [ -z "$API_PUBLISH_BIND" ]; then
+        if [ "$API_PUBLISH_MODE" = "host" ]; then
+            API_PUBLISH_BIND="0.0.0.0"
+        else
+            API_PUBLISH_BIND="127.0.0.1"
+        fi
+    fi
 }
 
 init_logging() {
@@ -233,6 +250,8 @@ generate_secrets() {
 API_PORT=$API_PORT
 API_KEY=$api_key
 API_HOST=0.0.0.0
+API_PUBLISH_MODE=$API_PUBLISH_MODE
+API_PUBLISH_BIND=$API_PUBLISH_BIND
 
 # Domain
 DOMAIN=$DOMAIN
@@ -480,19 +499,34 @@ EOF_SERVICE
 }
 
 show_summary() {
+    local publish_mode="${API_PUBLISH_MODE:-internal}"
+    local publish_bind="${API_PUBLISH_BIND:-127.0.0.1}"
+    local endpoint_host="localhost"
+    local security_note="   - API يعمل على localhost فقط"
+
+    if [ "$publish_bind" != "127.0.0.1" ]; then
+        endpoint_host="${DOMAIN:-$publish_bind}"
+        if [ "$publish_bind" = "0.0.0.0" ]; then
+            security_note="   - API مكشوف على جميع الواجهات (bind=0.0.0.0) – احم المنفذ بجدار ناري أو VPN"
+        else
+            security_note="   - API مكشوف على الواجهة $publish_bind – احم المنفذ بجدار ناري أو VPN"
+        fi
+    fi
+
     cat << EOF_SUMMARY
 ${GREEN}═══════════════════════════════════════════════════════════════${NC}
 ${GREEN}   تم تثبيت Vibe Coding Platform بنجاح! 🎉${NC}
 ${GREEN}═══════════════════════════════════════════════════════════════${NC}
 
 ${BLUE}📋 معلومات الوصول:${NC}
-   - API Endpoint:  http://localhost:$API_PORT
+   - API Endpoint:  http://$endpoint_host:$API_PORT
+   - Bind Mode:     $publish_mode (bind: $publish_bind)
    - API Key:       (راجع $INSTALL_DIR/config/.env)
    - GitHub Secrets: /data/github-secrets.bin
    - Health Check:  http://localhost:$API_PORT/health
 
 ${YELLOW}⚠️  مهم للأمان:${NC}
-   - API يعمل على localhost فقط
+${security_note}
    - استخدم Reverse Proxy للوصول الخارجي عند الحاجة
 
 ${BLUE}🔧 أوامر الإدارة:${NC}
