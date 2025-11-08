@@ -73,6 +73,17 @@ services:
       - API_KEY=${API_KEY}
       - API_HOST=${API_HOST:-0.0.0.0}
       - DOMAIN=${DOMAIN:-localhost}
+
+      # Exposure controls
+      - API_PUBLISH_MODE=${API_PUBLISH_MODE:-internal}
+      - API_PUBLISH_BIND=${API_PUBLISH_BIND:-127.0.0.1}
+      - API_TRAEFIK_ENABLE=${API_TRAEFIK_ENABLE:-false}
+      - API_TRAEFIK_HOST=${API_TRAEFIK_HOST:-api.localhost}
+      - API_TRAEFIK_ENTRYPOINTS=${API_TRAEFIK_ENTRYPOINTS:-websecure}
+      - API_TRAEFIK_TLS=${API_TRAEFIK_TLS:-true}
+      - API_TRAEFIK_MIDDLEWARES=${API_TRAEFIK_MIDDLEWARES:-}
+      - API_TRAEFIK_BASIC_AUTH_USERS=${API_TRAEFIK_BASIC_AUTH_USERS:-}
+      - API_TRAEFIK_IP_ALLOWLIST=${API_TRAEFIK_IP_ALLOWLIST:-}
       
       # Database
       - DB_TYPE=sqlite
@@ -114,7 +125,7 @@ services:
       - LOGS_DIR=/logs
     
     ports:
-      - "127.0.0.1:${API_PORT:-9000}:${API_PORT:-9000}"
+      - "${API_PUBLISH_BIND:-127.0.0.1}:${API_PORT:-9000}:${API_PORT:-9000}"
     
     networks:
       - vibe-network
@@ -159,6 +170,15 @@ services:
     labels:
       - "com.vibe-coding.service=api"
       - "com.vibe-coding.version=2.0"
+      - "traefik.enable=${API_TRAEFIK_ENABLE:-false}"
+      - "traefik.http.routers.api.rule=Host(\"${API_TRAEFIK_HOST:-api.localhost}\")"
+      - "traefik.http.routers.api.entrypoints=${API_TRAEFIK_ENTRYPOINTS:-websecure}"
+      - "traefik.http.routers.api.tls=${API_TRAEFIK_TLS:-true}"
+      - "traefik.http.routers.api.service=api"
+      - "traefik.http.services.api.loadbalancer.server.port=${API_PORT:-9000}"
+      - "traefik.http.routers.api.middlewares=${API_TRAEFIK_MIDDLEWARES:-}"
+      - "traefik.http.middlewares.api-basic-auth.basicauth.users=${API_TRAEFIK_BASIC_AUTH_USERS:-}"
+      - "traefik.http.middlewares.api-ip-allowlist.ipwhitelist.sourcerange=${API_TRAEFIK_IP_ALLOWLIST:-}"
   
   # ===========================================================================
   # Project Manager - Container Orchestration
