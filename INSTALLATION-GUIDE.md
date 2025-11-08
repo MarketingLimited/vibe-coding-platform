@@ -3,24 +3,38 @@
 يوضح هذا الدليل كيفية نشر المنصة وتشغيلها خطوة بخطوة بعد إعادة هيكلتها إلى خدمات مستقلة.
 
 ## 1. المتطلبات المسبقة
-- نظام Ubuntu 24.04 مع صلاحيات `sudo`.
-- Docker 24+ و Docker Compose v2 (يتم تثبيتهما تلقائياً عند استخدام السكربت).
+- نظام Linux مع صلاحيات `sudo` أو وصول `root`:
+  - عائلات Debian/Ubuntu (Debian 12، Ubuntu 22.04/24.04، Pop!_OS...).
+  - عائلات RHEL (Rocky 9، AlmaLinux 9، CentOS Stream).
+- Docker 24+ و Docker Compose v2 (سيتم تثبيتهما تلقائياً إذا لزم الأمر).
 - منفذ داخلي متاح للـ API (`9000`) ومنفذ داخلي لخدمة Project Manager (`9400`).
 - مساحة تخزين لا تقل عن 20GB مع 4GB RAM على الأقل.
 
 ## 2. التثبيت الآلي
+### 2.1 المسار العام (Debian/Ubuntu وRocky/Alma)
+```bash
+curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platform/main/install.sh | sudo bash
+```
+- يتحقق تلقائياً من نوع التوزيعة ومدير الحزم ويثبت المتطلبات الأساسية (`curl`, `git`, `openssl`).
+- يمكن تنفيذ `--dry-run` للتحقق من الدعم دون إنشاء مجلدات أو تثبيت Docker.
+- استخدم `--skip-firewall` إذا لم يكن UFW متاحاً، و`--skip-systemd` للبيئات التي لا تدعم systemd (مثل حاويات Docker).
+
+### 2.2 مسار Plesk الاختياري
 ```bash
 curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platform/main/install-plesk.sh | sudo bash
 ```
-### ماذا يفعل السكربت؟
-1. يتحقق من نظام التشغيل، Docker، و Plesk (إن وجد).
-2. ينشئ المجلدات:
+- يعتمد على نفس الوظائف المشتركة مع إضافة فحص Plesk وإعداد Firewall افتراضي لحماية المنصة.
+- خيار `--dry-run` متاح للتحقق من التوزيعة قبل بدء التثبيت الكامل.
+
+### ماذا يفعل كلا السكربتين؟
+1. يتحققان من نظام التشغيل ووجود Docker، ويقومان بتثبيته (عند الحاجة) عبر سكربت `get.docker.com`.
+2. ينشئان المجلدات:
    - `/opt/vibe-coding` للتطبيقات.
    - `/var/lib/vibe-coding` للبيانات (`projects`, `logs`).
-3. يستنسخ المستودع ويولّد ملفي `.env` (`config/.env` و `.env`) مع قيم افتراضية عبر نفس منطق السكربت التفاعلي `tools/setup/activate.sh`، بما في ذلك مفتاح تشفير GitHub (`GITHUB_SECRETS_KEY`) ومسار التخزين (`/data/github-secrets.bin`).
-4. ينشئ شبكة `vibe-network` إذا لم تكن موجودة.
-5. يبني الصور (`api`, `project-manager`, `cleanup`) ويشغّل سكربت `tools/build-project-images.sh` لبناء صور المشاريع الافتراضية، ثم يستدعي `docker compose up -d`.
-6. يضيف أوامر مساعدة (`vibe-status`, `vibe-logs`, `vibe-update`, ...).
+3. يستنسخان المستودع ويولّدان ملفي `.env` (`config/.env` و `.env`) مع قيم افتراضية عبر نفس منطق السكربت التفاعلي `tools/setup/activate.sh`، بما في ذلك مفتاح تشفير GitHub (`GITHUB_SECRETS_KEY`) ومسار التخزين (`/data/github-secrets.bin`).
+4. ينشئان شبكة `vibe-network` إذا لم تكن موجودة.
+5. يبنيان الصور (`api`, `project-manager`, `cleanup`) ويشغّلان سكربت `tools/build-project-images.sh` لبناء صور المشاريع الافتراضية، ثم يستدعيان `docker compose up -d`.
+6. يضيفان أوامر مساعدة (`vibe-status`, `vibe-logs`, `vibe-update`, ...).
 
 ## 3. التثبيت اليدوي (لبيئات التطوير)
 ```bash
