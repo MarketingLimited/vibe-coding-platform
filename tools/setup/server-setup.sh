@@ -32,6 +32,14 @@ DATA_DIR="${DATA_DIR:-/srv/vibe}"
 DOMAIN="${DOMAIN:-localhost}"
 API_PORT="${API_PORT:-9000}"
 API_HOST="${API_HOST:-0.0.0.0}"
+API_PUBLISH_MODE="${API_PUBLISH_MODE:-internal}"
+if [[ ${API_PUBLISH_BIND+x} ]]; then
+  API_PUBLISH_BIND="${API_PUBLISH_BIND}"
+  API_PUBLISH_BIND_OVERRIDE=true
+else
+  API_PUBLISH_BIND=""
+  API_PUBLISH_BIND_OVERRIDE=false
+fi
 
 usage() {
   cat <<'EOF'
@@ -42,6 +50,8 @@ Options:
   --domain DOMAIN         Primary domain used for generated routes (default: localhost)
   --api-port PORT         API port exposed by docker compose (default: 9000)
   --api-host HOST         API listen address inside the container (default: 0.0.0.0)
+  --api-publish-mode MODE Exposure mode for docker publishing (internal|host, default: internal)
+  --api-publish-bind IP   Bind address for docker publishing (overrides mode default)
   --no-start              Prepare everything but do not run docker compose up
   --no-build-images       Skip docker compose build and project image build step
   --force-env             Regenerate config/.env even if it already exists
@@ -51,7 +61,8 @@ Options:
   -h, --help              Show this message
 
 Environment variables:
-  DATA_DIR, DOMAIN, API_PORT, API_HOST can override their respective defaults.
+  DATA_DIR, DOMAIN, API_PORT, API_HOST, API_PUBLISH_MODE, API_PUBLISH_BIND can override
+  their respective defaults.
 EOF
 }
 
@@ -72,6 +83,15 @@ parse_args() {
         ;;
       --api-host)
         API_HOST="$2"
+        shift 2
+        ;;
+      --api-publish-mode)
+        API_PUBLISH_MODE="$2"
+        shift 2
+        ;;
+      --api-publish-bind)
+        API_PUBLISH_BIND="$2"
+        API_PUBLISH_BIND_OVERRIDE=true
         shift 2
         ;;
       --no-start)
@@ -138,6 +158,8 @@ prepare_configuration() {
 API_HOST=$API_HOST
 API_PORT=$API_PORT
 DOMAIN=$DOMAIN
+API_PUBLISH_MODE=$API_PUBLISH_MODE
+API_PUBLISH_BIND=$API_PUBLISH_BIND
 API_KEY=$api_key
 MASTER_API_KEY=$master_key
 ADMIN_ALERT_EMAIL=$alert_email
@@ -226,14 +248,34 @@ EOF_CREDS
 main() {
   parse_args "$@"
 
+  case "$API_PUBLISH_MODE" in
+    internal|host)
+      ;;
+    *)
+      error "وضع النشر للـ API غير معروف: $API_PUBLISH_MODE (القيم المدعومة: internal, host)"
+      ;;
+  esac
+
+  if [[ $API_PUBLISH_BIND_OVERRIDE = false || -z "$API_PUBLISH_BIND" ]]; then
+    if [[ $API_PUBLISH_MODE = host ]]; then
+      API_PUBLISH_BIND="0.0.0.0"
+    else
+      API_PUBLISH_BIND="127.0.0.1"
+    fi
+  fi
+
   INSTALL_DIR="$ROOT_DIR"
   export INSTALL_DIR
   export DATA_DIR
   export DOMAIN
   export API_PORT
+  export API_PUBLISH_MODE
+  export API_PUBLISH_BIND
 
   init_installation_context
   init_logging
+
+  log "تهيئة نشر API: الوضع=$API_PUBLISH_MODE، bind=$API_PUBLISH_BIND"
 
   log "تهيئة منصة Vibe Coding داخل $INSTALL_DIR"
 

@@ -10,7 +10,8 @@
 sudo bash tools/setup/server-setup.sh \
   --domain example.com \
   --data-dir /srv/vibe \
-  --api-port 9000
+  --api-port 9000 \
+  --api-publish-mode host
 ```
 
 يقوم السكربت بالخطوات التالية:
@@ -22,4 +23,13 @@ sudo bash tools/setup/server-setup.sh \
 5. إنشاء شبكة Docker، وبناء الصور، وتشغيل `docker compose up -d` ما لم يتم استخدام الخيارين `--no-build-images` أو `--no-start`.
 6. إنشاء سكربتات الإدارة المختصرة (`vibe-status`, `vibe-logs`, `vibe-start`, ...).
 
-يمكن استخدام وضع التجربة عبر `--dry-run` للتأكد من دعم التوزيعة قبل تنفيذ أي تغييرات. جميع الإعدادات (`DOMAIN`, `API_PORT`, `DATA_DIR`, `API_HOST`) يمكن تمريرها أيضًا عبر متغيرات البيئة.
+يمكن استخدام وضع التجربة عبر `--dry-run` للتأكد من دعم التوزيعة قبل تنفيذ أي تغييرات. جميع الإعدادات (`DOMAIN`, `API_PORT`, `DATA_DIR`, `API_HOST`, `API_PUBLISH_MODE`, `API_PUBLISH_BIND`) يمكن تمريرها أيضًا عبر متغيرات البيئة.
+
+### التحكم في عرض الـ API
+
+يوفر السكربت علمين جديدين لتحديد كيفية نشر منفذ الـ API:
+
+* `--api-publish-mode` يحدد أسلوب النشر: `internal` (الافتراضي) يربط المنفذ على `127.0.0.1` فقط، بينما `host` يضبطه إلى `0.0.0.0` لتمكين الوصول البعيد مباشرةً.
+* `--api-publish-bind` يسمح بكتابة عنوان IP مخصص لتجاوز القيمة الافتراضية للوضع المختار، مثل `--api-publish-bind 192.168.1.10`.
+
+يتم حفظ القيم داخل كلٍ من `config/.env` وملف `.env` في الجذر بحيث يستخدمها Docker Compose لاحقًا. يمكن ضبط نفس السلوك عبر المتغيرات البيئية `API_PUBLISH_MODE` و`API_PUBLISH_BIND` عند تشغيل السكربت.
