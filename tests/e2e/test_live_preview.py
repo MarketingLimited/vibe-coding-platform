@@ -1,4 +1,5 @@
 import sys
+import subprocess
 import types
 from pathlib import Path
 from typing import Dict, Optional
@@ -78,6 +79,7 @@ if "pydantic" not in sys.modules:  # pragma: no cover - testing utility
         validator=_validator,
     )
 
+from project_manager.app.models import GitCommitCommand, GitLogCommand, GitResetCommand
 from project_manager.app.services import ProjectManager
 
 
@@ -86,6 +88,7 @@ class FakeSettings:
         self.projects_dir = base_path / "projects"
         self.logs_dir = base_path / "logs"
         self.templates_dir = base_path / "templates"
+        self.backups_dir = base_path / "backups"
         self.gh_config_dir = base_path / ".config" / "gh"
         self.docker_host = None
         self.network_name = "vibe-network"
@@ -280,6 +283,7 @@ def fake_environment(monkeypatch, tmp_path: Path):
     settings.projects_dir.mkdir(parents=True, exist_ok=True)
     settings.logs_dir.mkdir(parents=True, exist_ok=True)
     (settings.templates_dir / "default").mkdir(parents=True, exist_ok=True)
+    settings.backups_dir.mkdir(parents=True, exist_ok=True)
 
     manager = ProjectManager(settings)
     return manager, fake_docker, fake_redis
@@ -312,3 +316,50 @@ def test_live_preview_registration(fake_environment):
 
     manager.delete_project(request.project_id)
     assert proxy_network.connections == []
+
+
+def test_git_operations_backup_and_reset(fake_environment, tmp_path: Path):
+    manager, _fake_docker, _fake_redis = fake_environment
+
+    project_id = "Proj-git"
+    request = FakeRequest(
+        project_id=project_id,
+        project_type="python",
+        username="demo",
+    )
+    manager.create_project(request)
+
+    workspace = manager._workspace_path(project_id)
+    subprocess.run(["git", "init"], cwd=workspace, check=True)
+    subprocess.run(["git", "config", "user.email", "tester@example.com"], cwd=workspace, check=True)
+    subprocess.run(["git", "config", "user.name", "Tester"], cwd=workspace, check=True)
+
+    readme = workspace / "README.md"
+    readme.write_text("initial\n")
+    subprocess.run(["git", "add", "README.md"], cwd=workspace, check=True)
+    subprocess.run(["git", "commit", "-m", "initial"], cwd=workspace, check=True)
+    initial_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=workspace).decode().strip()
+
+    readme.write_text("updated\n")
+
+    commit_result = manager.git_commit(
+        project_id,
+        GitCommitCommand(message="update readme", cwd=str(workspace)),
+    )
+    backup_path = Path(commit_result["backup_path"])
+    assert backup_path.exists()
+    assert "update readme" in manager.git_log(
+        project_id,
+        GitLogCommand(limit=5, cwd=str(workspace)),
+    )["stdout"]
+
+    readme.write_text("broken change\n")
+    reset_result = manager.git_reset(
+        project_id,
+        GitResetCommand(commit=initial_commit, cwd=str(workspace)),
+    )
+    reset_backup_path = Path(reset_result["backup_path"])
+    assert reset_backup_path.exists()
+    assert reset_backup_path != backup_path
+    assert manager._last_backups[project_id] == reset_backup_path
+    assert readme.read_text() == "initial\n"

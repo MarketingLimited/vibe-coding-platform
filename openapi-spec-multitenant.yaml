@@ -337,6 +337,100 @@ paths:
                   project_id: "ahmad-myapi"
                   password: "X7k2Pm9qs4Rt"
                   cmd: "pytest -v"
+
+  /git/commit:
+    post:
+      operationId: gitCommit
+      summary: إنشاء التزام جديد مع نسخة احتياطية
+      tags: [Git]
+      security: []
+      description: |
+        ينفذ `git commit` داخل حاوية المشروع بعد إنشاء نسخة احتياطية كاملة من مساحة العمل.
+
+        ⚠️ تذكير: يتم إنشاء مجلد نسخ احتياطي قبل أي تعديل لتسهيل التراجع لاحقًا.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitCommitRequest'
+            examples:
+              commit_all:
+                summary: حفظ جميع التغييرات الحالية
+                value:
+                  project_id: "ahmad-myapi"
+                  password: "X7k2Pm9qs4Rt"
+                  message: "تحديث README وصفحة الهبوط"
+                  add_all: true
+      responses:
+        '200':
+          description: تفاصيل تنفيذ git commit مع مسار النسخة الاحتياطية
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitCommandResponse'
+
+  /git/log:
+    post:
+      operationId: gitLog
+      summary: عرض سجل Git الأخير
+      tags: [Git]
+      security: []
+      description: |
+        ينفذ `git log` داخل حاوية المشروع مع التحكم بعدد السجلات وصيغة العرض.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitLogRequest'
+            examples:
+              recent_log:
+                summary: عرض آخر 5 التزامات
+                value:
+                  project_id: "ahmad-myapi"
+                  password: "X7k2Pm9qs4Rt"
+                  limit: 5
+                  format: "%h %ad %s"
+      responses:
+        '200':
+          description: ناتج أمر git log
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitCommandResponse'
+
+  /git/reset:
+    post:
+      operationId: gitReset
+      summary: التراجع إلى التزام سابق مع نسخة احتياطية
+      tags: [Git]
+      security: []
+      description: |
+        ينفذ `git reset` (افتراضيًا بوضع --hard) بعد إنشاء نسخة احتياطية من مساحة العمل.
+
+        استخدم هذا المسار لاسترجاع حالة المشروع إلى التزام محدد بعد اكتشاف مشكلة.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitResetRequest'
+            examples:
+              rollback_example:
+                summary: التراجع إلى التزام محدد
+                value:
+                  project_id: "ahmad-myapi"
+                  password: "X7k2Pm9qs4Rt"
+                  commit: "abc123def456"
+                  hard: true
+      responses:
+        '200':
+          description: نتيجة تنفيذ git reset مع موقع النسخة الاحتياطية
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitCommandResponse'
       
       responses:
         '200':
@@ -466,6 +560,119 @@ components:
       description: |
         مفتاح API الرئيسي (للعمليات الإدارية فقط)
         مثل إنشاء المشاريع وحذفها
+  schemas:
+    GitCommandResponse:
+      type: object
+      required: [returncode, stdout, stderr]
+      properties:
+        returncode:
+          type: integer
+          description: كود الخروج من أمر Git
+        stdout:
+          type: string
+          description: ناتج المعيار stdout (قد يتم اقتطاعه)
+        stderr:
+          type: string
+          description: ناتج المعيار stderr (قد يتم اقتطاعه)
+        backup_path:
+          type: string
+          nullable: true
+          description: مسار النسخة الاحتياطية التي تم إنشاؤها قبل تنفيذ الأمر
+    GitCommitRequest:
+      type: object
+      required: [project_id, password, message]
+      properties:
+        project_id:
+          type: string
+          description: معرف المشروع المستهدف
+        password:
+          type: string
+          description: كلمة مرور المشروع للتحقق من الهوية
+        message:
+          type: string
+          minLength: 1
+          description: رسالة الالتزام
+        add_all:
+          type: boolean
+          default: true
+          description: إضافة جميع الملفات تلقائيًا قبل الالتزام
+        amend:
+          type: boolean
+          default: false
+          description: تعديل الالتزام السابق بدلاً من إنشاء واحد جديد
+        cwd:
+          type: string
+          default: /workspace
+          description: مسار التنفيذ داخل الحاوية
+        timeout:
+          type: integer
+          minimum: 1
+          maximum: 300
+          nullable: true
+          description: مهلة التنفيذ بالثواني
+        max_output_size:
+          type: integer
+          minimum: 1024
+          nullable: true
+          description: الحد الأقصى لحجم المخرجات (بايت)
+    GitLogRequest:
+      type: object
+      required: [project_id, password]
+      properties:
+        project_id:
+          type: string
+        password:
+          type: string
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 10
+          description: عدد السجلات المطلوب عرضها
+        format:
+          type: string
+          nullable: true
+          description: القيمة الممررة إلى `git log --pretty`
+        cwd:
+          type: string
+          default: /workspace
+        timeout:
+          type: integer
+          minimum: 1
+          maximum: 300
+          nullable: true
+        max_output_size:
+          type: integer
+          minimum: 1024
+          nullable: true
+    GitResetRequest:
+      type: object
+      required: [project_id, password, commit]
+      properties:
+        project_id:
+          type: string
+        password:
+          type: string
+        commit:
+          type: string
+          minLength: 4
+          description: معرف الالتزام المراد الرجوع إليه
+        hard:
+          type: boolean
+          default: true
+          description: استخدام reset --hard لحذف التغييرات المحلية
+        cwd:
+          type: string
+          default: /workspace
+        timeout:
+          type: integer
+          minimum: 1
+          maximum: 300
+          nullable: true
+        max_output_size:
+          type: integer
+          minimum: 1024
+          nullable: true
 
 tags:
   - name: System
@@ -474,3 +681,5 @@ tags:
     description: إدارة المشاريع
   - name: Execution
     description: تنفيذ الأوامر
+  - name: Git
+    description: إدارة مستودع Git داخل الحاوية مع نسخ احتياطية تلقائية

@@ -38,6 +38,28 @@ class ExecCommand(BaseModel):
     max_output_size: int = 10 * 1024 * 1024
 
 
+class GitCommandBase(BaseModel):
+    cwd: str = "/workspace"
+    timeout: Optional[int]
+    max_output_size: int = Field(10 * 1024 * 1024, ge=1024)
+
+
+class GitCommitCommand(GitCommandBase):
+    message: str = Field(..., min_length=1)
+    add_all: bool = True
+    amend: bool = False
+
+
+class GitLogCommand(GitCommandBase):
+    limit: int = Field(10, ge=1, le=100)
+    format: Optional[str]
+
+
+class GitResetCommand(GitCommandBase):
+    commit: str = Field(..., min_length=4)
+    hard: bool = True
+
+
 class ProjectStatus(BaseModel):
     project_id: str
     status: str
