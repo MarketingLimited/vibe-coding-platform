@@ -37,7 +37,7 @@
 1. بعد ضبط `API_PUBLIC_BASE_URL`، شغّل `tools/openapi/render-multitenant-spec.sh` لتوليد الملف النهائي للمواصفة.
 2. استورد `openapi-spec-multitenant.rendered.yaml` في GPT Builder واستخدم `X-API-Key` الموجود في `config/.env` أو `.env` الجذرية.
 3. التفاعل مع `/projects/create`, `/projects/info`, `/exec` مع توفير `project_id` و`password`.
-4. الاطلاع على `GPT-INSTRUCTIONS-MULTITENANT.md` لضبط التعليمات الخاصة بالذاكرة وتدوير كلمات المرور.
+4. الاطلاع على `GPT-INSTRUCTIONS-MULTITENANT.md` لضبط التعليمات الخاصة بالذاكرة وتدوير كلمات المرور، مع الرجوع إلى `knowledge/multitenant-reference.md` لتفاصيل الجلسات والأمثلة.
 
 ## ما القادم؟
 - توسيع المكتبة لتشمل قوالب مشاريع إضافية (Go، Rust، Laravel) وتحديث صور `vibe-project-*`.

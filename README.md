@@ -149,7 +149,7 @@ bash tools/setup/deactivate.sh
 1. استورد ملف `openapi-spec-multitenant.yaml` إلى GPT Builder.
 2. استخدم `X-API-Key` المولد ضمن ملف `config/.env` للمصادقة.
 3. مرر معرف المشروع وكلمة المرور عبر حقول الطلب لتنفيذ الأوامر.
-4. راجع ملف `GPT-INSTRUCTIONS-MULTITENANT.md` للحصول على أفضل الممارسات حول إدارة الذاكرة وسير العمل.
+4. راجع ملف `GPT-INSTRUCTIONS-MULTITENANT.md` للحصول على أفضل الممارسات حول إدارة الذاكرة وسير العمل، واستخدم `knowledge/multitenant-reference.md` للتدفقات والأمثلة المفصلة.
 
 ## 📁 القوالب والصور
 - مجلد `project-manager/templates/images` يحتوي Dockerfiles لبناء صور المشاريع (Python، Node.js، PHP، Full Stack)، ويمكن إعادة بنائها دفعة واحدة عبر `tools/build-project-images.sh` (يدعم خيارات `--prefix` و`--tag`).

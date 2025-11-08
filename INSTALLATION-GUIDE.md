@@ -87,7 +87,7 @@ curl -X POST http://localhost:9000/projects/create \
 2. افتح GPT Builder واختر Actions.
 3. استورد الملف الناتج `openapi-spec-multitenant.rendered.yaml`.
 4. أدخل `X-API-Key` المخزن في `config/.env`.
-5. الصق تعليمات `GPT-INSTRUCTIONS-MULTITENANT.md` في قسم التعليمات.
+5. الصق تعليمات `GPT-INSTRUCTIONS-MULTITENANT.md` في قسم التعليمات، واحتفظ بالملف المرجعي `knowledge/multitenant-reference.md` للسيناريوهات التفصيلية.
 6. اختبر الاتصال بواسطة:
    ```bash
    curl -fsSL "$API_PUBLIC_BASE_URL/health"

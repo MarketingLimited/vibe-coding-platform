@@ -44,7 +44,10 @@ vibe-coding-platform/
 ├── SUMMARY.md                   # الخلاصة التنفيذية
 ├── setup.sh                     # سكريبت التثبيت (تلقائي)
 ├── openapi-spec.yaml            # للـ GPT Action
-├── gpt-instructions.md          # تعليمات GPT
+├── gpt-instructions.md          # تعليمات GPT الأساسية
+├── knowledge/
+│   ├── operations-guide.md      # أمثلة موسعة وجداول مرجعية
+│   └── multitenant-reference.md # تدفقات منصة متعددة المستأجرين
 ├── projects/template/           # قالب المشروع
 │   ├── Dockerfile              # صورة محسّنة
 │   ├── docker-compose.yml      # تكوين شامل
@@ -95,7 +98,7 @@ SSH:   ssh dev@server -p 22221
    - Type: API Key
    - Header: X-API-Key
    - Value: من ملف `.env`
-3. **Instructions**: انسخ `gpt-instructions.md`
+3. **Instructions**: انسخ `gpt-instructions.md` (وللمرجعيات التفصيلية احتفظ بـ `knowledge/operations-guide.md`)
 
 ### الاختبار:
 ```
