@@ -59,6 +59,11 @@ echo "[setup] Press enter to accept the default in brackets."
 echo
 
 DATA_DIR=$(read_with_default "Data directory for projects/logs" "${DATA_DIR:-/srv/vibe}")
+echo "[setup] Ensuring data directories exist under '$DATA_DIR'..."
+mkdir -p "$DATA_DIR"/projects "$DATA_DIR"/logs "$DATA_DIR"/tmp "$DATA_DIR"/redis || {
+  echo "[setup] Failed to create data directories inside $DATA_DIR" >&2
+  exit 1
+}
 API_PORT=$(read_with_default "API port" "${API_PORT:-9000}")
 DOMAIN=$(read_with_default "Primary domain" "${DOMAIN:-localhost}")
 API_KEY_DEFAULT=${API_KEY:-$(generate_secret)}

@@ -82,21 +82,32 @@ bash tools/setup/activate.sh
 pip install -r requirements-dev.txt
 ```
 
+ينشئ السكربت مجلدات البيانات تلقائياً (`${DATA_DIR}/projects`, `${DATA_DIR}/logs`, `${DATA_DIR}/tmp`, `${DATA_DIR}/redis`) في أول تشغيل، بحيث تتوفر مجلدات السجلات بدون خطوات إضافية عند العمل في بيئة التطوير أو عند ربطها عبر Docker.
+
 ### مراقبة السجلات والتحقق من الجاهزية
-بعد تشغيل الخدمات، راقبها مباشرة عبر:
+#### جمع السجلات
+- استخدم السكربت الجديد `tools/vibe-logs.sh --follow` لعرض جميع السجلات مباشرة (يعادل `docker compose logs -f`).
+- لتصفية خدمة بعينها أو تقليص حجم المخرجات: `tools/vibe-logs.sh --tail 100 api project-manager`.
+- يمكن دائماً الرجوع إلى الأمر الأصلي `docker compose logs` مع الخيارات التي تفضلها، فجميع الأوامر تحفظ السجلات في المجلد المستضاف `${DATA_DIR}/logs` الذي يتم إنشاؤه تلقائياً في بيئة التطوير.
 
-```bash
-docker compose logs -f
-```
-
-يُفضّل التأكد من جاهزية الخدمات عبر نقاط الصحة التالية:
-
+#### فحوصات الجاهزية
 ```bash
 curl -f http://localhost:9000/health
 curl -f http://localhost:9000/health/services
 ```
 
 يعرض الأمر الأول ملخص الجاهزية العام، بينما يكشف الأمر الثاني حالة كل خدمة داخلية مع تفاصيل حدود المعدّل.
+
+### مراقبة Redis والحاويات
+- تحقق من سلامة Redis من داخل الحاوية: `docker compose exec redis redis-cli ping` أو `docker compose exec redis redis-cli INFO memory` للحصول على تفاصيل أعمق.
+- لمراقبة المفاتيح مؤقتاً: `docker compose exec redis redis-cli --scan --pattern 'project:*'` أو `redis-cli monitor` في جلسة منفصلة (ينصح بإيقافه بعد الانتهاء).
+- اعرض حالة الحاويات قيد التشغيل: `docker ps --filter "name=vibe" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'`.
+- للحصول على تفاصيل شبكة أو مجلدات مع خدمة محددة: `docker inspect vibe-api --format '{{json .Mounts}}' | jq` أو استبدل `vibe-api` بأي حاوية أخرى داخل المنصة.
+
+### التحقق من `/metrics` وتجربة Prometheus محلياً
+1. تأكد من أن واجهة القياس تعمل عبر `curl -fsSL http://localhost:9000/metrics | head` أو من داخل الحاوية: `docker compose exec api curl -fsSL http://localhost:9000/metrics`.
+2. لتجربة جمع المؤشرات محلياً، شغّل حزمة المراقبة الاختيارية: `docker compose -f infra/monitoring/docker-compose.monitoring.yml up -d prometheus` ثم زر `http://localhost:9090/targets` للتأكد من ظهور الخدمة `vibe-api`.
+3. يمكنك التحقق من البيانات المخزنة باستخدام: `curl -fsSL 'http://localhost:9090/api/v1/query?query=uvicorn_requests_total'` للتأكد من أن Prometheus يقرأ مؤشرات `/metrics` بنجاح.
 
 ### إيقاف الخدمات وتنظيف الحالة بين الجلسات
 لإيقاف المنصة وإعادة ضبط البيئة المحلية، استخدم السكربت الجديد:
