@@ -1,0 +1,39 @@
+http:
+  middlewares:
+    code-server-auth:
+      basicAuth:
+        usersFile: /etc/traefik/credentials/code-server-users.htpasswd
+        realm: "code-server"
+        removeHeader: true
+
+  routers:
+    code-server:
+      entryPoints:
+        - websecure
+      rule: "HostRegexp(`code.{domain:[a-z0-9.-]+}`)"
+      service: code-server@file
+      tls:
+        options: secure@file
+      middlewares:
+        - code-server-auth
+
+  services:
+    code-server:
+      loadBalancer:
+        servers:
+          - url: http://code-server:8443
+        passHostHeader: true
+
+tls:
+  options:
+    secure:
+      minVersion: VersionTLS12
+      sniStrict: true
+      cipherSuites:
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+      curvePreferences:
+        - CurveP256
+        - CurveP384

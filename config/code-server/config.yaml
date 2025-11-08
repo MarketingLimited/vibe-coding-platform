@@ -1,0 +1,8 @@
+# Default code-server configuration template.
+# The install scripts will replace __CODE_SERVER_PASSWORD__ with a generated secret
+# when copying this file to ${DATA_DIR}/code-server/config/config.yaml.
+bind-addr: 0.0.0.0:8443
+auth: password
+password: __CODE_SERVER_PASSWORD__
+cert: false
+disable-telemetry: true
