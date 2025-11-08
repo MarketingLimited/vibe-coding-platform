@@ -125,6 +125,13 @@ bash tools/setup/activate.sh
 - تمت إضافة ملفات `infra/edge/traefik.yml` و`infra/edge/dynamic/certificates.yml` كبداية آمنة يمكن توسيعها لإضافة رؤوس أمان أو نطاقات إضافية عند الحاجة.
 - يعرض الـ API رابط المعاينة `preview_url` ضمن ردود `/projects/create`, `/projects/info`, و`/projects/{username}` لتسهيل مشاركة الرابط مباشرة مع المستخدم أو GPT.
 
+## 🖥️ مشاركة VS Code عبر code-server
+- يتم نشر خدمة `code-server` تلقائياً على الرابط `https://code.<النطاق>` (مثال: `https://code.kazaaz.com`) مع حماية TLS و Basic Auth.
+- بيانات الدخول الافتراضية محفوظة في `${DATA_DIR}/code-server/credentials.txt` (المستخدم `coder`).
+- يعتمد Traefik على ملف `${DATA_DIR}/edge/credentials/code-server-users.htpasswd` لتوثيق Basic Auth؛ حدّثه عند تغيير كلمة المرور باستخدام `openssl passwd -apr1` أو أداة `htpasswd`.
+- لتعديل كلمة المرور أو تعطيل المصادقة كلمة المرور، غيّر `${DATA_DIR}/code-server/config/config.yaml` ثم أعد تشغيل الخدمة عبر `docker compose restart code-server edge-proxy`.
+- لمشاركة جلسة VS Code مع مطوّر آخر، شارك الرابط وكلمة المرور المؤقتة، ثم قم بتدويرها بعد انتهاء الجلسة عبر تحديث الملفين السابقين وإعادة تشغيل الخدمات.
+
 ## 🔐 نشر الـ API خارجيًا (GPT / Integrations)
 - يتم التحكم في تعرض الـ API عبر متغير `API_PUBLISH_MODE` داخل `config/.env`:
   - `internal` (افتراضي): يبقى المنفذ مربوطًا على `127.0.0.1` ولا يمكن الوصول إليه من خارج الخادم.

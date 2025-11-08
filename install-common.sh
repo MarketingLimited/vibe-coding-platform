@@ -185,9 +185,21 @@ create_directories() {
     log "إنشاء المجلدات..."
 
     mkdir -p "$INSTALL_DIR"/{api,project-manager,cleanup,config,infra,projects,tools}
-    mkdir -p "$DATA_DIR"/{projects,databases,logs}
+    mkdir -p \
+        "$DATA_DIR/projects" \
+        "$DATA_DIR/databases" \
+        "$DATA_DIR/logs" \
+        "$DATA_DIR/code-server/config" \
+        "$DATA_DIR/code-server/data" \
+        "$DATA_DIR/edge/credentials"
 
     chmod 750 "$INSTALL_DIR" "$DATA_DIR"
+
+    if chown -R 1000:1000 "$DATA_DIR/code-server" >> "$LOG_FILE" 2>&1; then
+        log "تم تهيئة أذونات مجلد code-server للمستخدم 1000"
+    else
+        warn "تعذر ضبط أذونات مجلد code-server، تأكد من منح الحاوية صلاحية الكتابة لاحقاً"
+    fi
 
     success "تم إنشاء المجلدات"
 }
@@ -263,6 +275,82 @@ EOF_ENV
     chmod 600 "$INSTALL_DIR/config/.env"
     cp "$INSTALL_DIR/config/.env" "$INSTALL_DIR/.env"
     chmod 600 "$INSTALL_DIR/.env"
+
+    local code_server_config_target="$DATA_DIR/code-server/config/config.yaml"
+    local code_server_htpasswd_target="$DATA_DIR/edge/credentials/code-server-users.htpasswd"
+    local code_server_credentials_file="$DATA_DIR/code-server/credentials.txt"
+    local code_server_password=""
+    local generated_code_server_credentials=false
+
+    if [ ! -f "$INSTALL_DIR/config/code-server/config.yaml" ]; then
+        warn "ملف قالب code-server غير موجود في المستودع. تخطي إنشاء الإعدادات الافتراضية."
+    elif [ ! -f "$code_server_config_target" ]; then
+        code_server_password=$(openssl rand -base64 30 | tr -dc 'A-Za-z0-9' | head -c 24)
+        generated_code_server_credentials=true
+
+        local escaped_password
+        escaped_password=$(printf '%s' "$code_server_password" | sed 's/[&\\/]/\\&/g')
+
+        sed "s/__CODE_SERVER_PASSWORD__/${escaped_password}/" \
+            "$INSTALL_DIR/config/code-server/config.yaml" > "$code_server_config_target"
+        chmod 600 "$code_server_config_target"
+    else
+        warn "ملف code-server/config.yaml موجود مسبقاً. لن يتم استبداله."
+    fi
+
+    if [ "$generated_code_server_credentials" = true ]; then
+        local htpasswd_hash
+        htpasswd_hash=$(openssl passwd -apr1 "$code_server_password")
+        local escaped_hash
+        escaped_hash=$(printf '%s' "$htpasswd_hash" | sed 's/[&\\/]/\\&/g')
+
+        if [ -f "$INSTALL_DIR/config/code-server/traefik-users.htpasswd" ]; then
+            sed "s/__CODE_SERVER_BASICAUTH__/${escaped_hash}/" \
+                "$INSTALL_DIR/config/code-server/traefik-users.htpasswd" > "$code_server_htpasswd_target"
+            chmod 640 "$code_server_htpasswd_target"
+        else
+            warn "قالب htpasswd لـ code-server غير موجود. لن يتم إنشاء ملف Traefik الافتراضي."
+        fi
+
+        cat > "$code_server_credentials_file" << EOF_CODE_SERVER_CREDS
+username: coder
+password: $code_server_password
+
+# يتم حفظ هذه البيانات للاستخدام البشري فقط. لتغيير كلمة المرور لاحقاً،
+# عدّل الملف $code_server_config_target ثم حدّث ملف htpasswd المقابل.
+EOF_CODE_SERVER_CREDS
+        chmod 600 "$code_server_credentials_file"
+    else
+        if [ ! -f "$code_server_htpasswd_target" ] && [ -f "$INSTALL_DIR/config/code-server/traefik-users.htpasswd" ]; then
+            local existing_password
+            existing_password=$(awk -F ':' '/^password:/ {print $2}' "$code_server_config_target" | tr -d ' ')
+            if [ -n "$existing_password" ]; then
+                local htpasswd_hash
+                htpasswd_hash=$(openssl passwd -apr1 "$existing_password")
+                local escaped_hash
+                escaped_hash=$(printf '%s' "$htpasswd_hash" | sed 's/[&\\/]/\\&/g')
+                sed "s/__CODE_SERVER_BASICAUTH__/${escaped_hash}/" \
+                    "$INSTALL_DIR/config/code-server/traefik-users.htpasswd" > "$code_server_htpasswd_target"
+                chmod 640 "$code_server_htpasswd_target"
+                warn "تم إنشاء ملف htpasswd لـ code-server بناءً على كلمة المرور الموجودة."
+            else
+                warn "تعذر استخراج كلمة المرور الحالية لـ code-server. أنشئ ملف htpasswd يدوياً."
+            fi
+        fi
+
+        if [ ! -f "$code_server_credentials_file" ] && [ -f "$code_server_config_target" ]; then
+            awk '/^password:/ {print $2}' "$code_server_config_target" | {
+                read -r existing_password
+                if [ -n "$existing_password" ]; then
+                    cat > "$code_server_credentials_file" << EOF_CODE_SERVER_EXISTING
+username: coder
+password: $existing_password
+EOF_CODE_SERVER_EXISTING
+                    chmod 600 "$code_server_credentials_file"
+                fi
+            }
+        fi
+    fi
 
     success "تم تجهيز ملفات التكوين"
 }
@@ -416,6 +504,8 @@ ${BLUE}📂 المجلدات:${NC}
    البيانات:   $DATA_DIR
    السجلات:    $DATA_DIR/logs
    التكوين:    $INSTALL_DIR/config/.env
+   VS Code URL: https://code.$DOMAIN
+   بيانات الولوج: $DATA_DIR/code-server/credentials.txt
    صور المشاريع: tools/build-project-images.sh
 
 ${GREEN}═══════════════════════════════════════════════════════════════${NC}

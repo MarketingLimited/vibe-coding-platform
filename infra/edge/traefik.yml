@@ -8,6 +8,9 @@ entryPoints:
           scheme: https
   websecure:
     address: ":443"
+    http:
+      tls:
+        options: secure@file
 
 providers:
   docker:

@@ -290,6 +290,12 @@ POST /projects/info
 "جاري العمل..."
 ```
 
+## 🖥️ مشاركة VS Code (code-server)
+- الرابط الدائم: `https://code.<النطاق>` (مثال: `https://code.kazaaz.com`).
+- سجّل أن الدخول محمي بـ Basic Auth (المستخدم الافتراضي `coder`، كلمة المرور متوفرة في `${DATA_DIR}/code-server/credentials.txt`).
+- أكّد على المستخدم تدوير كلمة المرور بعد انتهاء الجلسة عبر تحديث `${DATA_DIR}/code-server/config/config.yaml` وملف `${DATA_DIR}/edge/credentials/code-server-users.htpasswd` ثم إعادة تشغيل `code-server` و`edge-proxy`.
+- لا تشارك كلمة المرور إلا عند الضرورة، واذكر أنها تمنح وصولاً كاملاً لبيئات المشاريع المشتركة.
+
 ## 🚫 ممنوعات
 
 1. **لا تخلط بين المشاريع**

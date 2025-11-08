@@ -42,6 +42,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./infra/edge/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./infra/edge/dynamic:/etc/traefik/dynamic:ro
+      - ${DATA_DIR}/edge/credentials:/etc/traefik/credentials:ro
       - ${DATA_DIR}/certs:/certs:ro
 
     networks:
@@ -354,3 +355,29 @@ services:
     labels:
       - "com.vibe-coding.service=cleanup"
       - "com.vibe-coding.version=2.0"
+
+  # ===========================================================================
+  # Shared VS Code (code-server)
+  # ===========================================================================
+  code-server:
+    image: coder/code-server:latest
+    container_name: vibe-code-server
+    hostname: vibe-code-server
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ:-UTC}
+    networks:
+      - vibe-network
+      - vibe-proxy
+    depends_on:
+      - project-manager
+    volumes:
+      - ${DATA_DIR}/projects:/home/coder/projects
+      - ${DATA_DIR}/code-server/config:/home/coder/.config/code-server
+      - ${DATA_DIR}/code-server/data:/home/coder/.local/share/code-server
+    security_opt:
+      - no-new-privileges:true
+    labels:
+      - "com.vibe-coding.service=code-server"
+      - "com.vibe-coding.version=2.0"
+      - "traefik.enable=false"
