@@ -29,12 +29,12 @@ curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platfor
 ### ماذا يفعل كلا السكربتين؟
 1. يتحققان من نظام التشغيل ووجود Docker، ويقومان بتثبيته (عند الحاجة) عبر سكربت `get.docker.com`.
 2. ينشئان المجلدات:
-   - `/opt/vibe-coding` للتطبيقات.
+   - `/opt/vibe-coding` للتطبيقات (يمكن تغييره عبر المتغير `INSTALL_DIR`).
    - `/var/lib/vibe-coding` للبيانات (`projects`, `logs`).
 3. يستنسخان المستودع ويولّدان ملفي `.env` (`config/.env` و `.env`) مع قيم افتراضية عبر نفس منطق السكربت التفاعلي `tools/setup/activate.sh`، بما في ذلك مفتاح تشفير GitHub (`GITHUB_SECRETS_KEY`) ومسار التخزين (`/data/github-secrets.bin`).
 4. ينشئان شبكة `vibe-network` إذا لم تكن موجودة.
 5. يبنيان الصور (`api`, `project-manager`, `cleanup`) ويشغّلان سكربت `tools/build-project-images.sh` لبناء صور المشاريع الافتراضية، ثم يستدعيان `docker compose up -d`.
-6. يضيفان أوامر مساعدة (`vibe-status`, `vibe-logs`, `vibe-update`, ...).
+6. يضيفان أوامر مساعدة (`vibe-status`, `vibe-logs`, `vibe-update`, ...) مع تهيئتها تلقائياً للإشارة إلى قيمة `INSTALL_DIR` المستخدمة أثناء التثبيت.
 
 ## 3. التثبيت اليدوي (لبيئات التطوير)
 ```bash

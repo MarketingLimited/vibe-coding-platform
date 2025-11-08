@@ -57,11 +57,11 @@ curl -sSL https://raw.githubusercontent.com/MarketingLimited/vibe-coding-platfor
 
 كلا المسارين يقومان بالمهام التالية:
 1. التحقق من النظام وإعداد Docker (عند الحاجة).
-2. إنشاء مجلد التثبيت `/opt/vibe-coding` ومجلد البيانات `/var/lib/vibe-coding`.
+2. إنشاء مجلد التثبيت الافتراضي `/opt/vibe-coding` (أو أي مسار يتم تمريره عبر المتغير `INSTALL_DIR`) ومجلد البيانات `/var/lib/vibe-coding`.
 3. تنزيل المستودع، توليد مفاتيح الوصول، وإنشاء ملف `.env` (يتضمن مفتاح تشفير GitHub سري يتم حفظه في `/data/github-secrets.bin`).
 4. بناء صور الخدمات (API، Project Manager، Cleanup، Redis) ثم تشغيل سكربت `tools/build-project-images.sh` لبناء صور المشاريع الأساسية (`vibe-project-<type>`).
 5. تشغيل الخدمات عبر `docker compose up -d`.
-6. إنشاء أوامر مساعدة مثل `vibe-status`, `vibe-logs`, `vibe-update`.
+6. إنشاء أوامر مساعدة مثل `vibe-status`, `vibe-logs`, `vibe-update`، ويتم ضبطها تلقائياً للإشارة إلى قيمة `INSTALL_DIR` النشطة.
 
 ### التثبيت اليدوي (لبيئات التطوير)
 ```bash

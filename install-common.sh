@@ -411,42 +411,46 @@ start_services() {
 }
 
 create_management_scripts() {
-    log "إنشاء سكربتات الإدارة في /usr/local/bin..."
+    local management_bin_dir="${MANAGEMENT_BIN_DIR:-/usr/local/bin}"
 
-    cat > /usr/local/bin/vibe-status << 'EOS'
+    log "إنشاء سكربتات الإدارة في $management_bin_dir..."
+
+    mkdir -p "$management_bin_dir"
+
+    cat > "$management_bin_dir/vibe-status" <<EOF
 #!/bin/bash
-cd /opt/vibe-coding && docker compose ps
-EOS
+cd "$INSTALL_DIR" && docker compose ps
+EOF
 
-    cat > /usr/local/bin/vibe-logs << 'EOS'
+    cat > "$management_bin_dir/vibe-logs" <<EOF
 #!/bin/bash
-cd /opt/vibe-coding && docker compose logs -f "$@"
-EOS
+cd "$INSTALL_DIR" && docker compose logs -f "\$@"
+EOF
 
-    cat > /usr/local/bin/vibe-restart << 'EOS'
+    cat > "$management_bin_dir/vibe-restart" <<EOF
 #!/bin/bash
-cd /opt/vibe-coding && docker compose restart
-EOS
+cd "$INSTALL_DIR" && docker compose restart
+EOF
 
-    cat > /usr/local/bin/vibe-stop << 'EOS'
+    cat > "$management_bin_dir/vibe-stop" <<EOF
 #!/bin/bash
-cd /opt/vibe-coding && docker compose stop
-EOS
+cd "$INSTALL_DIR" && docker compose stop
+EOF
 
-    cat > /usr/local/bin/vibe-start << 'EOS'
+    cat > "$management_bin_dir/vibe-start" <<EOF
 #!/bin/bash
-cd /opt/vibe-coding && docker compose start
-EOS
+cd "$INSTALL_DIR" && docker compose start
+EOF
 
-    cat > /usr/local/bin/vibe-update << 'EOS'
+    cat > "$management_bin_dir/vibe-update" <<EOF
 #!/bin/bash
-cd /opt/vibe-coding
- git pull origin main
- docker compose build
- docker compose up -d
-EOS
+cd "$INSTALL_DIR"
+git pull origin main
+docker compose build
+docker compose up -d
+EOF
 
-    chmod +x /usr/local/bin/vibe-*
+    chmod +x "$management_bin_dir"/vibe-*
     success "سكربتات الإدارة جاهزة"
 }
 
