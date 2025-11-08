@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     projects_dir: Path = Field(Path("/projects"), env="PROJECTS_DIR")
     logs_dir: Path = Field(Path("/logs"), env="LOGS_DIR")
     templates_dir: Path = Field(Path("/templates"), env="TEMPLATES_DIR")
+    backups_dir: Path = Field(Path("/backups"), env="BACKUPS_DIR")
 
     docker_host: Optional[str] = Field(None, env="DOCKER_HOST")
     network_name: str = Field("vibe-network", env="NETWORK_NAME")

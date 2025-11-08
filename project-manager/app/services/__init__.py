@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import logging
+import shlex
 import shutil
+import subprocess
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional
@@ -12,7 +15,15 @@ import docker
 import redis
 
 from ..config import Settings
-from ..models import ExecCommand, ProjectRequest, ProjectSecrets, ProjectStatus
+from ..models import (
+    ExecCommand,
+    GitCommitCommand,
+    GitLogCommand,
+    GitResetCommand,
+    ProjectRequest,
+    ProjectSecrets,
+    ProjectStatus,
+)
 from .router_registry import RouterRegistry
 from .secret_sync import SecretSyncError, SecretSyncService
 
@@ -36,6 +47,7 @@ class ProjectManager:
         self._ensure_directories()
         self._ensure_network()
         self.router_registry.ensure_network()
+        self._last_backups: Dict[str, Path] = {}
 
     # ------------------------------------------------------------------
     # environment preparation
@@ -43,6 +55,7 @@ class ProjectManager:
     def _ensure_directories(self) -> None:
         self.settings.projects_dir.mkdir(parents=True, exist_ok=True)
         self.settings.logs_dir.mkdir(parents=True, exist_ok=True)
+        self.settings.backups_dir.mkdir(parents=True, exist_ok=True)
 
     def _ensure_network(self) -> None:
         try:
@@ -88,6 +101,91 @@ class ProjectManager:
             return self.docker_client.containers.get(name)
         except docker.errors.NotFound:
             return None
+
+    def _backup_root(self, project_id: str) -> Path:
+        return self.settings.backups_dir / project_id
+
+    def _create_workspace_backup(self, project_id: str) -> Path:
+        workspace = self._workspace_path(project_id)
+        if not workspace.exists():
+            raise FileNotFoundError(f"Workspace for {project_id} does not exist")
+
+        backup_root = self._backup_root(project_id)
+        backup_root.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+        backup_path = backup_root / f"{timestamp}-{uuid.uuid4().hex[:8]}"
+        shutil.copytree(workspace, backup_path)
+        self._last_backups[project_id] = backup_path
+        return backup_path
+
+    @staticmethod
+    def _truncate_output(value: str, limit: int) -> str:
+        if len(value) <= limit:
+            return value
+        return value[:limit] + "\n...[truncated]"
+
+    def _run_git_command(
+        self,
+        project_id: str,
+        command: str,
+        cwd: str,
+        timeout: Optional[int],
+        max_output_size: int,
+        extra_state: Optional[Dict[str, str]] = None,
+    ) -> Dict[str, object]:
+        container = self._find_container(project_id)
+        if not container:
+            raise docker.errors.NotFound(f"Container not found for {project_id}")
+        if container.status != "running":
+            container.start()
+
+        stdout = ""
+        stderr = ""
+        returncode = 0
+
+        if hasattr(container, "exec_run"):
+            result = container.exec_run(
+                cmd=["bash", "-lc", command],
+                workdir=cwd,
+                demux=True,
+                timeout=timeout,
+            )
+            stdout_bytes, stderr_bytes = result.output if isinstance(result.output, tuple) else (result.output, b"")
+            stdout = (stdout_bytes or b"").decode("utf-8", errors="replace")
+            stderr = (stderr_bytes or b"").decode("utf-8", errors="replace")
+            returncode = result.exit_code
+        else:
+            host_cwd = cwd
+            if not Path(cwd).exists():
+                host_cwd = str(self._workspace_path(project_id))
+            try:
+                completed = subprocess.run(
+                    ["bash", "-lc", command],
+                    cwd=host_cwd,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    check=False,
+                )
+                stdout = completed.stdout
+                stderr = completed.stderr
+                returncode = completed.returncode
+            except subprocess.TimeoutExpired as exc:
+                stdout = (exc.stdout or "")
+                stderr = (exc.stderr or "") + "\nCommand timed out"
+                returncode = 124
+
+        stdout = self._truncate_output(stdout, max_output_size)
+        stderr = self._truncate_output(stderr, max_output_size)
+
+        container.reload()
+        self._update_state(project_id, container.status, container.id, extra_state)
+
+        return {
+            "returncode": returncode,
+            "stdout": stdout,
+            "stderr": stderr,
+        }
 
     # ------------------------------------------------------------------
     # metadata helpers
@@ -281,6 +379,64 @@ class ProjectManager:
             "stderr": stderr,
             "elapsed_seconds": 0.0,
         }
+
+    def git_commit(self, project_id: str, command: GitCommitCommand) -> Dict[str, object]:
+        backup_path = self._create_workspace_backup(project_id)
+        git_args = ["git", "commit"]
+        if command.add_all:
+            self._run_git_command(
+                project_id,
+                "git add --all",
+                command.cwd,
+                command.timeout,
+                command.max_output_size,
+            )
+            git_args.append("--all")
+        if command.amend:
+            git_args.append("--amend")
+        git_args.extend(["-m", command.message])
+        git_command = " ".join(shlex.quote(part) for part in git_args)
+        result = self._run_git_command(
+            project_id,
+            git_command,
+            command.cwd,
+            command.timeout,
+            command.max_output_size,
+            {"last_git_backup": str(backup_path)},
+        )
+        result["backup_path"] = str(backup_path)
+        return result
+
+    def git_log(self, project_id: str, command: GitLogCommand) -> Dict[str, object]:
+        git_args = ["git", "log", "-n", str(command.limit)]
+        if command.format:
+            git_args.append(f"--pretty={command.format}")
+        git_command = " ".join(shlex.quote(part) for part in git_args)
+        return self._run_git_command(
+            project_id,
+            git_command,
+            command.cwd,
+            command.timeout,
+            command.max_output_size,
+        )
+
+    def git_reset(self, project_id: str, command: GitResetCommand) -> Dict[str, object]:
+        backup_path = self._create_workspace_backup(project_id)
+        git_args = ["git", "reset"]
+        if command.hard:
+            git_args.append("--hard")
+        git_args.append(command.commit)
+        git_command = " ".join(shlex.quote(part) for part in git_args)
+        result = self._run_git_command(
+            project_id,
+            git_command,
+            command.cwd,
+            command.timeout,
+            command.max_output_size,
+            {"last_git_backup": str(backup_path)},
+        )
+        result["backup_path"] = str(backup_path)
+        return result
 
     def close(self) -> None:
         self.docker_client.close()

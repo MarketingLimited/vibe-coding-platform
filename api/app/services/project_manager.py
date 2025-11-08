@@ -46,6 +46,33 @@ class ProjectManagerClient:
         response.raise_for_status()
         return response.json()
 
+    async def git_commit(self, project_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        response = await self._client.post(
+            f"{self._base_url}/internal/projects/{project_id}/git/commit",
+            json=payload,
+            timeout=payload.get("timeout", None),
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def git_log(self, project_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        response = await self._client.post(
+            f"{self._base_url}/internal/projects/{project_id}/git/log",
+            json=payload,
+            timeout=payload.get("timeout", None),
+        )
+        response.raise_for_status()
+        return response.json()
+
+    async def git_reset(self, project_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        response = await self._client.post(
+            f"{self._base_url}/internal/projects/{project_id}/git/reset",
+            json=payload,
+            timeout=payload.get("timeout", None),
+        )
+        response.raise_for_status()
+        return response.json()
+
     async def sync_project_secrets(self, project_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Propagate GitHub credentials to the project-manager service."""
 

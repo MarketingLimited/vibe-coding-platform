@@ -11,7 +11,14 @@ import docker
 from fastapi import Depends, FastAPI, HTTPException, Request
 
 from .config import Settings
-from .models import ExecCommand, ProjectRequest, ProjectSecrets
+from .models import (
+    ExecCommand,
+    GitCommitCommand,
+    GitLogCommand,
+    GitResetCommand,
+    ProjectRequest,
+    ProjectSecrets,
+)
 from .services import ProjectManager
 
 logging.basicConfig(
@@ -122,4 +129,46 @@ async def exec_in_project(
     try:
         return manager.exec(project_id, command)
     except Exception as exc:  # pragma: no cover - runtime errors are surfaced
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/internal/projects/{project_id}/git/commit")
+async def git_commit(
+    project_id: str,
+    command: GitCommitCommand,
+    manager: ProjectManager = Depends(get_manager),
+) -> Dict[str, object]:
+    try:
+        return manager.git_commit(project_id, command)
+    except docker.errors.NotFound as exc:  # type: ignore[name-defined]
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/internal/projects/{project_id}/git/log")
+async def git_log(
+    project_id: str,
+    command: GitLogCommand,
+    manager: ProjectManager = Depends(get_manager),
+) -> Dict[str, object]:
+    try:
+        return manager.git_log(project_id, command)
+    except docker.errors.NotFound as exc:  # type: ignore[name-defined]
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/internal/projects/{project_id}/git/reset")
+async def git_reset(
+    project_id: str,
+    command: GitResetCommand,
+    manager: ProjectManager = Depends(get_manager),
+) -> Dict[str, object]:
+    try:
+        return manager.git_reset(project_id, command)
+    except docker.errors.NotFound as exc:  # type: ignore[name-defined]
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

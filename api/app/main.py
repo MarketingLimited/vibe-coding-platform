@@ -6,6 +6,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 from .config import get_settings
 from .routers import exec as exec_router
 from .routers import health as health_router
+from .routers import git as git_router
 from .routers import projects as projects_router
 from .utils.logging import configure_audit_logging, configure_logging, get_audit_logger, set_request_id
 
@@ -52,6 +53,7 @@ async def audit_requests(request: Request, call_next):  # pragma: no cover - int
 app.include_router(health_router.router)
 app.include_router(projects_router.router)
 app.include_router(exec_router.router)
+app.include_router(git_router.router)
 
 Instrumentator().instrument(app).expose(app, include_in_schema=False)
 
@@ -73,6 +75,11 @@ async def root() -> dict:
                 "rotate_password": "POST /projects/rotate-password",
             },
             "exec": "POST /exec",
+            "git": {
+                "commit": "POST /git/commit",
+                "log": "POST /git/log",
+                "reset": "POST /git/reset",
+            },
         },
     }
 
