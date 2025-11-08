@@ -8,7 +8,7 @@ class ExecRequest(BaseModel):
     password: str
     cmd: str = Field(..., min_length=1, max_length=10000)
     cwd: Optional[str] = Field("/workspace", max_length=500)
-    timeout: Optional[int]
+    timeout: Optional[int] = None
 
 
 class ExecResponse(BaseModel):

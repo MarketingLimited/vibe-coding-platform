@@ -46,6 +46,11 @@ pydantic_stub.BaseSettings = _BaseSettings
 pydantic_stub.Field = _field
 sys.modules.setdefault("pydantic", pydantic_stub)
 
+pydantic_settings_stub = types.ModuleType("pydantic_settings")
+pydantic_settings_stub.BaseSettings = _BaseSettings
+pydantic_settings_stub.SettingsConfigDict = dict
+sys.modules.setdefault("pydantic_settings", pydantic_settings_stub)
+
 from cleanup.app.service import CleanupService
 
 

@@ -24,9 +24,25 @@ class _APIRouter:
 
         return decorator
 
+    def get(self, *args, **kwargs):  # noqa: ANN001, ANN003
+        def decorator(func):
+            return func
+
+        return decorator
+
+    def delete(self, *args, **kwargs):  # noqa: ANN001, ANN003
+        def decorator(func):
+            return func
+
+        return decorator
+
 
 def _depends(dependency=None):  # noqa: ANN001
     return dependency
+
+
+def _header(default=None, alias=None):  # noqa: ANN001
+    return default
 
 
 class _HTTPException(Exception):
@@ -38,6 +54,7 @@ class _HTTPException(Exception):
 
 fastapi_module.APIRouter = _APIRouter
 fastapi_module.Depends = _depends
+fastapi_module.Header = _header
 fastapi_module.HTTPException = _HTTPException
 sys.modules["fastapi"] = fastapi_module
 

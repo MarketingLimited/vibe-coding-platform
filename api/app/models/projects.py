@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Dict, Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class ProjectCreate(BaseModel):
@@ -18,19 +18,19 @@ class ProjectCreate(BaseModel):
     database: Optional[str] = Field(None, pattern=r"^(postgres|mysql|sqlite|none)?$")
     redis: bool = False
 
-    @validator("project_template", pre=True)
+    @field_validator("project_template", mode="before")
     def normalise_template(cls, value: Optional[str]) -> Optional[str]:
         if value in (None, ""):
             return None
         return value
 
-    @validator("github_api_key")
+    @field_validator("github_api_key")
     def validate_github_api_key(cls, value: str) -> str:
         if not value or not value.strip():
             raise ValueError("GitHub API key is required")
         return value.strip()
 
-    @validator("additional_secrets", pre=True)
+    @field_validator("additional_secrets", mode="before")
     def ensure_dict(cls, value):
         if value in (None, ""):
             return {}
@@ -38,7 +38,7 @@ class ProjectCreate(BaseModel):
             return value
         raise ValueError("additional_secrets must be a mapping")
 
-    @validator("database", pre=True)
+    @field_validator("database", mode="before")
     def normalise_database(cls, value: Optional[str]) -> Optional[str]:
         if value in ("", None, "none"):
             return None
@@ -57,10 +57,10 @@ class ProjectInfo(BaseModel):
     project_type: str
     created_at: datetime
     status: str
-    container_id: Optional[str]
+    container_id: Optional[str] = None
     database: str
     redis: bool
-    preview_url: Optional[str]
+    preview_url: Optional[str] = None
 
 
 class ProjectDelete(ProjectAuth):

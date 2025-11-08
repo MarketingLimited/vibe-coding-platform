@@ -72,11 +72,18 @@ if "pydantic" not in sys.modules:  # pragma: no cover - testing utility
 
         return decorator
 
+    _field_validator = _validator
+
     sys.modules["pydantic"] = types.SimpleNamespace(
         BaseModel=_BaseModel,
         BaseSettings=_BaseSettings,
         Field=_field,
         validator=_validator,
+        field_validator=_field_validator,
+    )
+    sys.modules["pydantic_settings"] = types.SimpleNamespace(
+        BaseSettings=_BaseSettings,
+        SettingsConfigDict=dict,
     )
 
 from project_manager.app.models import GitCommitCommand, GitLogCommand, GitResetCommand

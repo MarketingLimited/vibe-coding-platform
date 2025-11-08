@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class _GitBaseRequest(BaseModel):
@@ -22,7 +22,7 @@ class _GitBaseRequest(BaseModel):
         description="Maximum number of bytes to return for stdout/stderr",
     )
 
-    @validator("cwd")
+    @field_validator("cwd")
     def _normalise_cwd(cls, value: Optional[str]) -> Optional[str]:
         if value and not value.startswith("/"):
             raise ValueError("cwd must be an absolute path")
