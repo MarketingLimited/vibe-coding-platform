@@ -83,11 +83,16 @@ curl -X POST http://localhost:9000/projects/create \
 5. **تدوير كلمة المرور** → `POST /projects/rotate-password`.
 
 ## 8. إعداد ChatGPT Action
-1. افتح GPT Builder واختر Actions.
-2. استورد `openapi-spec-multitenant.yaml`.
-3. أدخل `X-API-Key` المخزن في `config/.env`.
-4. الصق تعليمات `GPT-INSTRUCTIONS-MULTITENANT.md` في قسم التعليمات.
-5. اختبر: "أنشئ مشروع Python جديد" ثم قم بتنفيذ أمر داخل المشروع عبر `/exec`.
+1. اضبط المتغير `API_PUBLIC_BASE_URL` في `config/.env` إلى العنوان الخارجي الكامل ثم نفّذ `tools/openapi/render-multitenant-spec.sh` لتوليد ملف `openapi-spec-multitenant.rendered.yaml`.
+2. افتح GPT Builder واختر Actions.
+3. استورد الملف الناتج `openapi-spec-multitenant.rendered.yaml`.
+4. أدخل `X-API-Key` المخزن في `config/.env`.
+5. الصق تعليمات `GPT-INSTRUCTIONS-MULTITENANT.md` في قسم التعليمات.
+6. اختبر الاتصال بواسطة:
+   ```bash
+   curl -fsSL "$API_PUBLIC_BASE_URL/health"
+   ```
+   ثم جرّب: "أنشئ مشروع Python جديد" ونفّذ أمرًا داخل المشروع عبر `/exec`.
 
 ## 9. الصيانة الدورية
 - **vibe-update**: يسحب آخر التحديثات من GitHub ويعيد بناء الصور.

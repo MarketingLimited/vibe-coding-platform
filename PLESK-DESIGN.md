@@ -235,14 +235,15 @@ location /vibe-api {
 
 ### أو استخدام مباشر من GPT
 ```
-Server: http://95.217.62.146:9000
-(يجب تأمين المنفذ بـ firewall)
+Server: $API_PUBLIC_BASE_URL
+(يجب أن يشير إلى نطاق HTTPS مفعّل عبر Traefik أو جدار ناري مخصص)
 ```
 
 ## 🔥 Firewall Rules
 
 ```bash
 # السماح فقط لـ Cloudflare/Specific IPs
+# حدّث العناوين بما يتوافق مع المضيف المرتبط بـ API_PUBLIC_BASE_URL
 ufw allow from 95.217.62.146 to any port 9000
 ufw allow from your_office_ip to any port 9000
 ufw deny 9000

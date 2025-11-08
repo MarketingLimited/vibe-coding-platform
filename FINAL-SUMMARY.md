@@ -34,8 +34,8 @@
 - **الأوامر السريعة**: يتم إنشاء `vibe-status`, `vibe-logs`, `vibe-restart`, `vibe-start`, `vibe-stop`, `vibe-update`، مع إمكانية استخدام السكربتات المحلية (`tools/vibe-status.sh`, `tools/vibe-backup.sh`).
 
 ## تكامل ChatGPT Actions
-1. استيراد `openapi-spec-multitenant.yaml` في GPT Builder.
-2. استخدام `X-API-Key` الموجود في `config/.env` أو `.env` الجذرية.
+1. بعد ضبط `API_PUBLIC_BASE_URL`، شغّل `tools/openapi/render-multitenant-spec.sh` لتوليد الملف النهائي للمواصفة.
+2. استورد `openapi-spec-multitenant.rendered.yaml` في GPT Builder واستخدم `X-API-Key` الموجود في `config/.env` أو `.env` الجذرية.
 3. التفاعل مع `/projects/create`, `/projects/info`, `/exec` مع توفير `project_id` و`password`.
 4. الاطلاع على `GPT-INSTRUCTIONS-MULTITENANT.md` لضبط التعليمات الخاصة بالذاكرة وتدوير كلمات المرور.
 

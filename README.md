@@ -181,7 +181,7 @@ bash tools/setup/deactivate.sh
   - `internal` (افتراضي): يبقى المنفذ مربوطًا على `127.0.0.1` ولا يمكن الوصول إليه من خارج الخادم.
   - `host`: يغيّر المتغير `API_PUBLISH_BIND` إلى `0.0.0.0` لفتح المنفذ مباشرة مع ضرورة تفعيل جدار حماية أو VPN.
   - `traefik`: يفعّل المسار العكسي عبر Traefik مع حماية إضافية (Basic Auth أو IP allowlist).
-- عند اختيار `host` أو `traefik`، حدّث `API_BASE_URL` أو المتغير المكافئ في أدوات GPT إلى `https://<hostname>/` أو `http://<public-ip>:9000/health` حسب الإعداد.
+- عند اختيار `host` أو `traefik`، اضبط `API_PUBLIC_BASE_URL` في `config/.env` إلى العنوان الخارجي الكامل (بروتوكول https مضمّن)، ثم شغّل `tools/openapi/render-multitenant-spec.sh` لتوليد ملف `openapi-spec-multitenant.rendered.yaml` برابط الخادم الفعلي قبل رفعه إلى GPT.
 - متغيرات التحكم الجديدة:
   - `API_PUBLISH_BIND`: عنوان الربط (افتراضي `127.0.0.1`).
   - `API_TRAEFIK_ENABLE`: لتفعيل المسار عبر Traefik (`true/false`).
@@ -205,13 +205,13 @@ bash tools/setup/deactivate.sh
 ## ✅ الاختبارات الموصى بها بعد التثبيت
 1. `curl http://localhost:9000/health` للتأكد من جاهزية الـ API.
 2. `curl http://localhost:9000/health/services` للحصول على حالة المكونات الداخلية وحدود المعدل.
-3. إذا تم تفعيل النشر الخارجي، اختبر الوصول من شبكة مختلفة:
+3. إذا تم تفعيل النشر الخارجي، تأكد أولاً محليًا من أن `API_PUBLIC_BASE_URL` يعمل:
    ```bash
-   docker run --rm curlimages/curl:8.5.0 curl -fsSL http://<public-host-or-ip>:9000/health
+   curl -fsSL "$API_PUBLIC_BASE_URL/health"
    ```
-   أو في حال Traefik مع TLS:
+   ثم اختبر الوصول من شبكة مختلفة:
    ```bash
-   docker run --rm curlimages/curl:8.5.0 curl -fsSL https://<api-hostname>/health -H "Host: <api-hostname>"
+   docker run --rm curlimages/curl:8.5.0 curl -fsSL "$API_PUBLIC_BASE_URL/health"
    ```
 4. إنشاء مشروع تجريبي عبر `POST /projects/create` ثم تنفيذ أمر عبر `/exec`.
 5. التحقق من أن خدمة Project Manager تعيد الحالة عبر `curl http://localhost:9400/health` من داخل المضيف.
