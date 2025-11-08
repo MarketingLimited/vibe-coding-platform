@@ -125,12 +125,46 @@ bash tools/setup/activate.sh
 - تمت إضافة ملفات `infra/edge/traefik.yml` و`infra/edge/dynamic/certificates.yml` كبداية آمنة يمكن توسيعها لإضافة رؤوس أمان أو نطاقات إضافية عند الحاجة.
 - يعرض الـ API رابط المعاينة `preview_url` ضمن ردود `/projects/create`, `/projects/info`, و`/projects/{username}` لتسهيل مشاركة الرابط مباشرة مع المستخدم أو GPT.
 
+## 🔐 نشر الـ API خارجيًا (GPT / Integrations)
+- يتم التحكم في تعرض الـ API عبر متغير `API_PUBLISH_MODE` داخل `config/.env`:
+  - `internal` (افتراضي): يبقى المنفذ مربوطًا على `127.0.0.1` ولا يمكن الوصول إليه من خارج الخادم.
+  - `host`: يغيّر المتغير `API_PUBLISH_BIND` إلى `0.0.0.0` لفتح المنفذ مباشرة مع ضرورة تفعيل جدار حماية أو VPN.
+  - `traefik`: يفعّل المسار العكسي عبر Traefik مع حماية إضافية (Basic Auth أو IP allowlist).
+- عند اختيار `host` أو `traefik`، حدّث `API_BASE_URL` أو المتغير المكافئ في أدوات GPT إلى `https://<hostname>/` أو `http://<public-ip>:9000/health` حسب الإعداد.
+- متغيرات التحكم الجديدة:
+  - `API_PUBLISH_BIND`: عنوان الربط (افتراضي `127.0.0.1`).
+  - `API_TRAEFIK_ENABLE`: لتفعيل المسار عبر Traefik (`true/false`).
+  - `API_TRAEFIK_HOST`: المضيف الذي سيستخدمه Traefik (مثال `api.example.com`).
+  - `API_TRAEFIK_ENTRYPOINTS`: نقاط الدخول (`websecure` للـ HTTPS، أو `web` للـ HTTP).
+  - `API_TRAEFIK_TLS`: إجبار Traefik على استخدام TLS (يفضّل إبقاؤه `true`).
+  - `API_TRAEFIK_MIDDLEWARES`: سلسة الـ middlewares المطلوب تطبيقها (مثال `api-basic-auth@docker,api-ip-allowlist@docker`).
+  - `API_TRAEFIK_BASIC_AUTH_USERS`: قائمة مستخدمين بتنسيق `user:hashedpassword` من مولّد `htpasswd`.
+  - `API_TRAEFIK_IP_ALLOWLIST`: قائمة عناوين IP أو CIDR مفصولة بفواصل مثل `10.0.0.0/8,192.168.1.10/32`.
+- **تحذير أمني**: افتح المنفذ الخارجي فقط بعد تفعيل TLS في Traefik أو حماية جدار الحماية/الشبكة الخاصة. تأكد من تحديث قواعد `ufw` أو حلول الـ firewall السحابية للسماح فقط بعناوين GPT أو عناوين IP الموثوقة.
+
+### تفعيل TLS أو الجدار الناري
+1. ضع ملفات الشهادة ضمن `${DATA_DIR}/certs` كما هو موضح في قسم معاينة التطبيقات.
+2. حدّث `infra/edge/dynamic/certificates.yml` لإضافة المضيف الجديد إذا لزم.
+3. فعّل `API_TRAEFIK_ENABLE=true`، وعيّن `API_TRAEFIK_HOST` إلى اسم النطاق المؤمّن.
+4. لتقييد الوصول:
+   - Basic Auth: اضبط `API_TRAEFIK_BASIC_AUTH_USERS` بالقيم الناتجة من `htpasswd`.
+   - IP allowlist: اضبط `API_TRAEFIK_IP_ALLOWLIST` بالعناوين الموثوقة.
+5. في حالة النشر المباشر (`API_PUBLISH_MODE=host`) فعّل جدار حماية مثل `ufw` للسماح بالمنفذ 9000 فقط لعناوين محددة أو ضع الخدمة خلف VPN.
+
 ## ✅ الاختبارات الموصى بها بعد التثبيت
 1. `curl http://localhost:9000/health` للتأكد من جاهزية الـ API.
 2. `curl http://localhost:9000/health/services` للحصول على حالة المكونات الداخلية وحدود المعدل.
-3. إنشاء مشروع تجريبي عبر `POST /projects/create` ثم تنفيذ أمر عبر `/exec`.
-4. التحقق من أن خدمة Project Manager تعيد الحالة عبر `curl http://localhost:9400/health` من داخل المضيف.
-5. تشغيل `pytest` من جذر المستودع للتحقق من محددات المعدل، مستودع المشاريع، ومنطق خدمة التنظيف.
+3. إذا تم تفعيل النشر الخارجي، اختبر الوصول من شبكة مختلفة:
+   ```bash
+   docker run --rm curlimages/curl:8.5.0 curl -fsSL http://<public-host-or-ip>:9000/health
+   ```
+   أو في حال Traefik مع TLS:
+   ```bash
+   docker run --rm curlimages/curl:8.5.0 curl -fsSL https://<api-hostname>/health -H "Host: <api-hostname>"
+   ```
+4. إنشاء مشروع تجريبي عبر `POST /projects/create` ثم تنفيذ أمر عبر `/exec`.
+5. التحقق من أن خدمة Project Manager تعيد الحالة عبر `curl http://localhost:9400/health` من داخل المضيف.
+6. تشغيل `pytest` من جذر المستودع للتحقق من محددات المعدل، مستودع المشاريع، ومنطق خدمة التنظيف.
 
 ## 🤝 المساهمة
 - افتح تذكرة جديدة لأي تحسين أو مشكلة.
