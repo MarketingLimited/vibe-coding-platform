@@ -21,12 +21,21 @@ app = FastAPI(
     description="Multi-tenant development platform",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Configure CORS with specific allowed origins for security
+# If no allowed origins are specified, CORS is disabled
+allowed_origins = []
+if settings.allowed_origins:
+    allowed_origins = [origin.strip() for origin in settings.allowed_origins.split(",") if origin.strip()]
+
+if allowed_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-API-Key"],
+        max_age=3600,
+    )
 
 app.middleware("http")(set_request_id)
 

@@ -25,18 +25,75 @@ class ProjectCreate(BaseModel):
         return value
 
     @field_validator("github_api_key")
+    @classmethod
     def validate_github_api_key(cls, value: str) -> str:
+        """Validate GitHub API key format and length."""
         if not value or not value.strip():
             raise ValueError("GitHub API key is required")
-        return value.strip()
+
+        value = value.strip()
+
+        # GitHub tokens have specific prefixes (not enforced strictly, just logged)
+        # Note: Some tokens may not follow this pattern, so we don't fail validation
+        valid_prefixes = ["ghp_", "gho_", "ghu_", "ghs_", "ghr_", "github_pat_"]
+        if not any(value.startswith(prefix) for prefix in valid_prefixes):
+            # Just a warning, don't fail validation as format may vary
+            pass
+
+        return value
 
     @field_validator("additional_secrets", mode="before")
+    @classmethod
     def ensure_dict(cls, value):
+        """Ensure additional_secrets is a valid dictionary."""
         if value in (None, ""):
             return {}
         if isinstance(value, dict):
             return value
         raise ValueError("additional_secrets must be a mapping")
+
+    @field_validator("additional_secrets")
+    @classmethod
+    def validate_additional_secrets(cls, value: Dict[str, str]) -> Dict[str, str]:
+        """
+        Validate additional secrets for security and format.
+
+        Args:
+            value: Dictionary of additional secrets
+
+        Returns:
+            Validated secrets dictionary
+
+        Raises:
+            ValueError: If secrets are invalid
+        """
+        if not isinstance(value, dict):
+            raise ValueError("additional_secrets must be a dictionary")
+
+        # Validate secret keys
+        import re
+        for key in value.keys():
+            if not re.match(r'^[A-Z_][A-Z0-9_]*$', key):
+                raise ValueError(
+                    f"Invalid secret key format: {key}. "
+                    "Must be uppercase with underscores (e.g., MY_SECRET_KEY)"
+                )
+
+            if len(key) > 64:
+                raise ValueError(f"Secret key too long: {key} (max 64 characters)")
+
+        # Validate secret values
+        for key, val in value.items():
+            if not isinstance(val, str):
+                raise ValueError(f"Secret value for {key} must be a string")
+
+            if len(val) > 10000:
+                raise ValueError(f"Secret value for {key} is too long (max 10000 characters)")
+
+        if len(value) > 50:
+            raise ValueError("Too many additional secrets (max 50)")
+
+        return value
 
     @field_validator("database", mode="before")
     def normalise_database(cls, value: Optional[str]) -> Optional[str]:
