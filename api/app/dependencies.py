@@ -97,6 +97,7 @@ def get_rate_limiter(
         redis_client,
         window_seconds=settings.rate_limit_window_seconds,
         enabled=settings.enable_rate_limit,
+        strict_mode=settings.strict_rate_limiting,
     )
 
 

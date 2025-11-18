@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     api_key: str = Field("")
     master_api_key: Optional[str] = Field(None)
 
+    # CORS configuration
+    allowed_origins: str = Field("", description="Comma-separated list of allowed origins for CORS")
+
     domain: str = Field("localhost")
 
     # Data stores
@@ -39,6 +42,11 @@ class Settings(BaseSettings):
     max_output_size: int = Field(10 * 1024 * 1024)
 
     enable_rate_limit: bool = Field(True)
+    strict_rate_limiting: bool = Field(
+        True,
+        description="If True, fail requests when rate limiter is unavailable (fail closed). "
+        "If False, allow requests when rate limiter is unavailable (fail open)."
+    )
     rate_limit_per_minute: int = Field(100)
     rate_limit_window_seconds: int = Field(60)
     exec_rate_limit_per_minute: int = Field(60)

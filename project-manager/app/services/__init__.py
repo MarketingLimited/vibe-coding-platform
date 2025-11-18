@@ -382,8 +382,10 @@ class ProjectManager:
             container.start()
 
         logger.info("Executing command", extra={"project_id": project_id, "cmd": command.command})
+        # Use array format to prevent command injection
+        # The command is executed directly without shell interpolation
         result = container.exec_run(
-            cmd=f"bash -lc '{command.command}'",
+            cmd=["bash", "-lc", command.command],
             workdir=command.cwd,
             demux=True,
         )

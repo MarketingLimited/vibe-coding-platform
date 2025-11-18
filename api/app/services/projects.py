@@ -7,7 +7,7 @@ import redis
 
 from ..config import Settings
 from ..models.projects import ProjectCreate, ProjectInfo
-from .security import generate_password, generate_project_id, hash_password
+from .security import generate_password, generate_project_id, hash_password, verify_password
 from .repository import ProjectRepository
 from .secrets import SecretStorage
 
@@ -210,18 +210,50 @@ class ProjectService:
         return count < self.settings.max_projects_per_user
 
     def verify_credentials(self, project_id: str, password: str) -> bool:
+        """
+        Verify project credentials using constant-time comparison.
+
+        Args:
+            project_id: Unique project identifier
+            password: Plain text password to verify
+
+        Returns:
+            True if credentials are valid, False otherwise
+
+        Note:
+            Uses constant-time comparison to prevent timing attacks.
+            Logs failed authentication attempts for security auditing.
+        """
         data = self.redis.hgetall(self._project_key(project_id))
         if not data:
             record = self.repository.get(project_id)
             if not record:
+                logger.warning(
+                    "Auth attempt for non-existent project",
+                    extra={"project_id": project_id}
+                )
                 return False
             self._rehydrate_cache(record)
             data = record
 
         stored_hash = data.get("password_hash")
-        if not stored_hash:
+        if not stored_hash or not isinstance(stored_hash, str):
+            logger.warning(
+                "Invalid or missing password hash",
+                extra={"project_id": project_id}
+            )
             return False
-        return hash_password(password) == stored_hash
+
+        # Use verify_password which performs constant-time comparison
+        is_valid = verify_password(password, stored_hash)
+
+        if not is_valid:
+            logger.warning(
+                "Failed authentication attempt",
+                extra={"project_id": project_id}
+            )
+
+        return is_valid
 
     def update_container_status(
         self,
